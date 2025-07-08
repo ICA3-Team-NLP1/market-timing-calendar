@@ -150,7 +150,7 @@ sudo chown -R $USER:$USER .
 
 ## 📝 라이선스
 
-MIT License
+Apache 2.0 License
 
 ---
 
