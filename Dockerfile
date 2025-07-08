@@ -1,10 +1,10 @@
 # ===== Stage 1: Node.js 의존성 및 빌드 =====
-FROM node:18-alpine AS frontend-deps
+FROM node:20 AS frontend-deps
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 
-FROM node:18-alpine AS frontend-builder
+FROM node:20 AS frontend-builder
 WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
@@ -44,7 +44,8 @@ RUN echo '{"status": "healthy"}' > ./static/health.json
 EXPOSE 8000
 
 # 개발 환경 시작 스크립트
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
+# CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
 
 # ===== Stage 4: 프로덕션 환경 =====
 FROM python:3.11-slim AS production
@@ -75,4 +76,5 @@ USER appuser
 EXPOSE 8000
 
 # 프로덕션 시작
-CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4"]
+# CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4"]
