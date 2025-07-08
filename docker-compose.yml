@@ -1,0 +1,106 @@
+version: '3.3'
+
+services:
+  # 메인 애플리케이션 (Frontend + Backend 통합)
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: development  # 개발 환경
+    ports:
+      - "8000:8000"
+    environment:
+      # 데이터베이스 연결
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/market_timing
+
+      # Google OAuth (환경변수에서 로드)
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-your_google_client_id}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-your_google_client_secret}
+      - GOOGLE_REDIRECT_URI=${GOOGLE_REDIRECT_URI:-http://localhost:8000/auth/callback}
+
+      # JWT 설정
+      - JWT_SECRET=${JWT_SECRET:-development_jwt_secret_key_min_32_chars}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY:-development_encryption_key_32_bytes}
+
+      # 외부 API
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-your_openai_api_key}
+      - RESEND_API_KEY=${RESEND_API_KEY:-re_your_resend_api_key}
+
+      # 앱 설정
+      - NODE_ENV=development
+      - DEBUG=true
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # 개발 시 코드 변경 실시간 반영
+      - ./frontend:/app/frontend
+      - ./backend:/app/backend
+      - /app/frontend/node_modules  # node_modules 제외
+      - app_data:/app/data          # 앱 데이터 영속화
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # PostgreSQL 데이터베이스
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: market_timing
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    ports:
+      - "5432:5432"  # 외부 접속 허용 (개발용)
+    volumes:
+      # 영속적 데이터 저장
+      - postgres_data:/var/lib/postgresql/data
+
+      # 초기 데이터 실행
+      - ./database/init:/docker-entrypoint-initdb.d:ro
+
+      # PostgreSQL 설정 (선택적)
+      # - ./postgres.conf:/etc/postgresql/postgresql.conf:ro
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d market_timing"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # 리소스 제한 (선택적)
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+# 영속적 볼륨
+volumes:
+  postgres_data:
+    driver: local
+    # 볼륨 위치 지정 (선택적)
+    # driver_opts:
+    #   o: bind
+    #   type: none
+    #   device: ./data/postgres
+
+  app_data:
+    driver: local
+    # 앱 데이터 (로그, 캐시 등)
+
+# 네트워크 설정
+networks:
+  app-network:
+    driver: bridge
+    # 커스텀 IP 대역 (선택적)
+    # ipam:
+    #   config:
+    #     - subnet: 172.20.0.0/16
