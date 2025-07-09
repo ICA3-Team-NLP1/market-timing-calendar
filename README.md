@@ -210,6 +210,12 @@ sudo lsof -i :8000
 sudo chown -R $USER:$USER .
 ```
 
+**01-init.sql로 DB 업데이트 후 스키마가 반영되지 않을 시:**
+```bash
+sudo docker-compose down -v
+sudo docker-compose up -d
+```
+
 ---
 
 ## 📝 라이선스
