@@ -1,4 +1,12 @@
-fastapi
-uvicorn
-python-dotenv
-alembic
+# FastAPI 기본 패키지
+fastapi>=0.100.0
+uvicorn[standard]>=0.22.0
+
+# Firebase 인증
+firebase-admin>=6.2.0
+
+# 기타 필수 패키지
+python-dotenv>=1.0.0
+pydantic==2.11.7
+pydantic-settings==2.9.1
+pydantic_core==2.33.2
