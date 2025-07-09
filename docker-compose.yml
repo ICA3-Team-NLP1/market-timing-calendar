@@ -47,6 +47,55 @@ services:
       timeout: 10s
       retries: 3
 
+  # Redis (Celery 브로커)
+  redis:
+    image: redis:7-alpine
+    container_name: redis-server
+    ports:
+      - "6379:6379"  # 외부 접속 허용 (개발용)
+    volumes:
+      - redis_data:/data
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes
+
+  # Background 서비스 (데이터 수집)
+  background:
+    build:
+      context: ./background
+      dockerfile: Dockerfile
+      target: celery-worker
+    environment:
+      # Redis 연결
+      - REDIS_URL=redis://redis:6379/0
+      # 외부 API (데이터 수집용)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-your_openai_api_key}
+      - YAHOO_FINANCE_API_KEY=${YAHOO_FINANCE_API_KEY:-your_yahoo_finance_key}
+      - KOREA_BANK_API_KEY=${KOREA_BANK_API_KEY:-your_korea_bank_api_key}
+      # 앱 설정
+      - DEBUG=true
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      # 개발 시 코드 변경 실시간 반영
+      - ./background:/app
+      - background_data:/app/data  # 수집 데이터 임시 저장
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "celery", "-A", "celery_app", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
   # PostgreSQL 데이터베이스
   postgres:
     image: postgres:15-alpine
@@ -91,10 +140,13 @@ volumes:
     #   o: bind
     #   type: none
     #   device: ./data/postgres
-
+  redis_data:
+    driver: local
   app_data:
     driver: local
     # 앱 데이터 (로그, 캐시 등)
+  background_data:
+    driver: local
 
 # 네트워크 설정
 networks:
