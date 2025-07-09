@@ -1,6 +1,25 @@
 # ===== Stage 1: Node.js 의존성 및 빌드 =====
 FROM node:20 AS frontend-deps
 WORKDIR /app/frontend
+
+# 빌드 시점 환경변수 선언
+ARG VITE_FIREBASE_API_KEY
+ARG VITE_FIREBASE_AUTH_DOMAIN
+ARG VITE_FIREBASE_PROJECT_ID
+ARG VITE_FIREBASE_STORAGE_BUCKET
+ARG VITE_FIREBASE_MESSAGING_SENDER_ID
+ARG VITE_FIREBASE_APP_ID
+ARG VITE_FIREBASE_MEASUREMENT_ID
+
+# 환경변수 설정
+ENV VITE_FIREBASE_API_KEY=$VITE_FIREBASE_API_KEY
+ENV VITE_FIREBASE_AUTH_DOMAIN=$VITE_FIREBASE_AUTH_DOMAIN
+ENV VITE_FIREBASE_PROJECT_ID=$VITE_FIREBASE_PROJECT_ID
+ENV VITE_FIREBASE_STORAGE_BUCKET=$VITE_FIREBASE_STORAGE_BUCKET
+ENV VITE_FIREBASE_MESSAGING_SENDER_ID=$VITE_FIREBASE_MESSAGING_SENDER_ID
+ENV VITE_FIREBASE_APP_ID=$VITE_FIREBASE_APP_ID
+ENV VITE_FIREBASE_MEASUREMENT_ID=$VITE_FIREBASE_MEASUREMENT_ID
+
 COPY frontend/package*.json ./
 RUN npm ci --only=production && npm cache clean --force
 
@@ -44,8 +63,8 @@ RUN echo '{"status": "healthy"}' > ./static/health.json
 EXPOSE 8000
 
 # 개발 환경 시작 스크립트
-# CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"]
+# CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:create_app --host 0.0.0.0 --port 8000 --reload"]
+CMD ["sh", "-c", "uvicorn app.main:create_app --host 0.0.0.0 --port 8000 --reload"]
 
 # ===== Stage 4: 프로덕션 환경 =====
 FROM python:3.11-slim AS production
@@ -76,5 +95,5 @@ USER appuser
 EXPOSE 8000
 
 # 프로덕션 시작
-# CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4"]
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4"]
+# CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:create_app --host 0.0.0.0 --port 8000 --workers 4"]
+CMD ["sh", "-c", "uvicorn app.main:create_app --host 0.0.0.0 --port 8000 --workers 4"]

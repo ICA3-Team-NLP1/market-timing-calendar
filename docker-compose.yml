@@ -29,6 +29,15 @@ services:
       # 앱 설정
       - NODE_ENV=development
       - DEBUG=true
+
+      # 프론트 Firebase 설정
+      - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY:-AIzaSyCaYBhQEGujz-oj-j2mvaSNHFlVnzrGztA}
+      - VITE_FIREBASE_AUTH_DOMAIN=${VITE_FIREBASE_AUTH_DOMAIN:-market-timing-calendar.firebaseapp.com}
+      - VITE_FIREBASE_PROJECT_ID=${VITE_FIREBASE_PROJECT_ID:-market-timing-calendar}
+      - VITE_FIREBASE_STORAGE_BUCKET=${VITE_FIREBASE_STORAGE_BUCKET:-market-timing-calendar.firebasestorage.app}
+      - VITE_FIREBASE_MESSAGING_SENDER_ID=${VITE_FIREBASE_MESSAGING_SENDER_ID:-539122761808}
+      - VITE_FIREBASE_APP_ID=${VITE_FIREBASE_APP_ID:-1:539122761808:web:016249bad69b51190d1155}
+      - VITE_FIREBASE_MEASUREMENT_ID=${VITE_FIREBASE_MEASUREMENT_ID:-G-5LPG8SK2EK}
     depends_on:
       postgres:
         condition: service_healthy
@@ -36,6 +45,7 @@ services:
       # 개발 시 코드 변경 실시간 반영
       - ./frontend:/app/frontend
       - ./backend:/app/backend
+      - ./backend/secrets:/app/secrets:ro    # secrets 폴더 볼륨 마운트 (읽기 전용)
       - /app/frontend/node_modules  # node_modules 제외
       - app_data:/app/data          # 앱 데이터 영속화
     networks:
