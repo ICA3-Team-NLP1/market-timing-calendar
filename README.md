@@ -26,6 +26,7 @@
 
 - Docker & Docker Compose
 - Git
+- Firebase 프로젝트 (인증용)
 
 ### 1. 프로젝트 클론
 
@@ -42,7 +43,62 @@ cp backend/.env.example backend/.env
 # .env 파일을 열어서 필요한 값들을 설정하세요
 ```
 
-### 3. Docker로 실행
+### 3. Firebase 프로젝트 설정 (필수)
+
+🔥 **중요: Firebase 서비스 계정 키는 각자 설정해야 합니다!**
+
+#### 3.1 Firebase 프로젝트 생성
+1. [Firebase Console](https://console.firebase.google.com/)에 접속
+2. **새 프로젝트 생성** 또는 기존 프로젝트 선택
+3. 프로젝트 이름: `market-timing-calendar` (또는 원하는 이름)
+
+#### 3.2 Firebase Authentication 설정
+1. Firebase Console → **Authentication** 메뉴
+2. **로그인 방법** 탭 클릭
+3. **Google** 로그인 방법 활성화
+4. **이메일/비밀번호** 로그인 방법 활성화 (선택사항)
+
+#### 3.3 Firebase 서비스 계정 키 생성 및 설정
+🔐 **이 단계는 각 개발자가 개별적으로 수행해야 합니다!**
+
+1. **서비스 계정 키 다운로드**:
+   ```
+   Firebase Console → 프로젝트 설정 → 서비스 계정 → "새 비공개 키 생성"
+   ```
+
+2. **JSON 파일 다운로드** 후 다음 위치에 저장:
+   ```bash
+   # 정확한 경로와 파일명으로 저장
+   backend/secrets/firebase-key.json
+   ```
+
+3. **보안 확인**:
+   ```bash
+   # .gitignore에 이미 포함되어 있는지 확인
+   cat .gitignore | grep secrets
+   # 결과: /backend/secrets/
+   ```
+
+#### 🚨 **중요 보안 사항**
+- ✅ `backend/secrets/` 폴더는 **gitignore**에 포함되어 있음
+- ⚠️ **절대 firebase-key.json을 Git에 커밋하지 마세요!**
+
+#### 3.4 프론트엔드 Firebase 설정
+1. **웹 앱 추가**:
+   ```
+   Firebase Console → 프로젝트 설정 → 일반 → 내 앱 → 웹 앱 추가
+   ```
+
+2. **설정 정보 복사** 후 docker-compose.yml에 반영:
+   ```yaml
+   # docker-compose.yml에서 다음 값들 수정
+   - VITE_FIREBASE_API_KEY=your-api-key
+   - VITE_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+   - VITE_FIREBASE_PROJECT_ID=your-project-id
+   # ... 기타 설정값들
+   ```
+
+### 4. Docker로 실행
 
 ```bash
 # 빌드 및 실행
@@ -52,7 +108,7 @@ sudo docker-compose up --build -d
 sudo docker-compose logs -f
 ```
 
-### 4. 접속
+### 5. 접속
 
 - **메인 애플리케이션**: http://localhost:8000
 - **API 문서**: http://localhost:8000/api/docs
@@ -99,14 +155,22 @@ python main.py
 market-timing-calendar/
 ├── frontend/              # React + Vite
 │   ├── src/
+│   │   ├── components/    # 재사용 가능한 컴포넌트
+│   │   ├── firebase.js    # Firebase 설정
+│   │   └── App.jsx
 │   ├── public/
 │   └── package.json
+├── database/
 ├── backend/               # FastAPI
 │   ├── app/
-│   │   ├── main.py
-│   │   ├── api/
-│   │   ├── models/
-│   │   └── services/
+│   │   ├── main.py        # 메인 애플리케이션
+│   │   ├── constants.py   # 주요 상수
+│   │   ├── api/           # API 라우터
+│   │   ├── core/          # 핵심 설정
+│   │   │   ├── config.py  # 환경 설정
+│   │   │   └── firebase.py # Firebase Auth
+│   │   └── utils/         # 유틸 함수
+│   ├── secrets            # 보안 관련 로컬 파일(gitignore)
 │   └── requirements.txt
 ├── docker-compose.yml
 ├── Dockerfile
