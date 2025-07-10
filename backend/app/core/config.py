@@ -23,12 +23,22 @@ class Settings(BaseSettings):
     REDOC_URL: str | None = "/api/redoc"
     DEBUG: bool = True
 
+    # 외부 API 설정
+    FRED_API_KEY: str = ""
+
+    # 데이터베이스 설정
+    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/market_timing"
+
+    # Redis 설정 (Celery용)
+    REDIS_URL: str = "redis://localhost:6379/0"
+
     # Firebase 설정
     FIREBASE_SECRET_FILE_PATH: str = path.join(media_secret_dir, "firebase-key.json")
     FIREBASE_SECRET_FILE: dict = load_json_file(FIREBASE_SECRET_FILE_PATH)
 
     class Config:
         env_file = ".env"
+        extra = "allow"  # 추가 필드 허용
 
 
 class ProdSettings(Settings):
@@ -38,6 +48,7 @@ class ProdSettings(Settings):
 
     class Config:
         env_file = ".env.prod"
+        extra = "allow"  # 추가 필드 허용
 
 
 @lru_cache()

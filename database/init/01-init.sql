@@ -26,20 +26,23 @@ CREATE TABLE event_category (
 );
 
 -- 일정 테이블
-CREATE TABLE event (
+CREATE TABLE events (
     id SERIAL PRIMARY KEY,
-    title VARCHAR(255) NOT NULL,
+    release_id VARCHAR(50),
+    title VARCHAR(255),
     description TEXT,
     date DATE NOT NULL,
     category_id INTEGER REFERENCES event_category(id) ON DELETE SET NULL,
-    impact VARCHAR(100),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    impact VARCHAR(20),
+    source VARCHAR(50) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
 -- 일정-카테고리 매핑 테이블 (다대다 관계용, 필요시)
 CREATE TABLE event_category_map (
     id SERIAL PRIMARY KEY,
-    event_id INTEGER NOT NULL REFERENCES event(id) ON DELETE CASCADE,
+    event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     category_id INTEGER NOT NULL REFERENCES event_category(id) ON DELETE CASCADE
 );
 
@@ -47,7 +50,7 @@ CREATE TABLE event_category_map (
 CREATE TABLE user_event_subscription (
     id SERIAL PRIMARY KEY,
     user_id INTEGER NOT NULL REFERENCES "user"(id) ON DELETE CASCADE,
-    event_id INTEGER NOT NULL REFERENCES event(id) ON DELETE CASCADE,
+    event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -80,6 +83,6 @@ CREATE TABLE user_interest_category (
 );
 
 -- 인덱스 및 제약조건 추가 (필요시)
-CREATE INDEX idx_event_date ON event(date);
+CREATE INDEX idx_event_date ON events(date);
 CREATE INDEX idx_user_event_subscription_user_id ON user_event_subscription(user_id);
 CREATE INDEX idx_user_event_subscription_event_id ON user_event_subscription(event_id);
