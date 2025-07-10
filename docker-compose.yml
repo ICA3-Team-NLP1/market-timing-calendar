@@ -78,13 +78,16 @@ services:
   # Background 서비스 (데이터 수집)
   background:
     build:
-      context: ./background
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: background/Dockerfile
       target: celery-worker
     environment:
       # Redis 연결
       - REDIS_URL=redis://redis:6379/0
+      # 데이터베이스 연결
+      - DATABASE_URL=postgresql://postgres:password@postgres:5432/market_timing
       # 외부 API (데이터 수집용)
+      - FRED_API_KEY=${FRED_API_KEY:-your_fred_api_key}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-your_openai_api_key}
       - YAHOO_FINANCE_API_KEY=${YAHOO_FINANCE_API_KEY:-your_yahoo_finance_key}
       - KOREA_BANK_API_KEY=${KOREA_BANK_API_KEY:-your_korea_bank_api_key}
@@ -94,8 +97,8 @@ services:
       redis:
         condition: service_healthy
     volumes:
-      # 개발 시 코드 변경 실시간 반영
-      - ./background:/app
+      # 개발 시 코드 변경 실시간 반영 - 전체 프로젝트 마운트 필요
+      - .:/app
       - background_data:/app/data  # 수집 데이터 임시 저장
     networks:
       - app-network
