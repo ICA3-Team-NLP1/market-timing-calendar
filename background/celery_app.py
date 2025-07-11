@@ -6,10 +6,11 @@ import os
 import sys
 sys.path.insert(0, '/app')
 sys.path.insert(0, '/app/backend')
+sys.path.insert(0, '/app/background')
 
 import requests
 from backend.app.core.config import settings
-from backend.app.models.event import Event
+from backend.app.models.events import Event
 from backend.app.models.base import SessionLocal
 # Celery 앱 생성
 app = Celery('background_tasks')
@@ -84,8 +85,8 @@ def data_collection_task():
                     date=date,
                     title=series_info.get("title"),
                     description=series_info.get("notes"),
-                    impact=resolve_impact_with_ai(series_info),
-                    category_id=resolve_category_id_with_ai(series_info),
+                    impact=resolve_impact_with_ai(release_info.get("name", ""), series_info),
+                    category_id=resolve_category_id_with_ai(release_info.get("name", ""), series_info),
                     source="FRED"
                 )
 
@@ -165,17 +166,101 @@ def get_representative_series_info(release_id):
         logger.warning(f"release_id={release_id} 시리즈 조회 실패: {e}")
         return {}
 
-def resolve_impact_with_ai(series_info):
-    """AI를 사용하여 series 정보를 기반으로 증시 영향도 (High/Medium/Low)를 판단"""
-    # TODO: 이 함수는 LLM 호출로 중요도 판단하도록 수정 필요.
-    # 임시 더미: 항상 'Medium' 반환 (Low/Medium/High)
-    return "Medium"
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.output_parsers import StrOutputParser
+from langchain_openai import ChatOpenAI
+from langchain_anthropic import ChatAnthropic
+from background.prompts.etl_prompts import category_prompt, impact_prompt
 
-def resolve_category_id_with_ai(series_info):
+def get_llm():
+    provider = settings.ACTIVE_LLM_PROVIDER  # 예: "openai" 또는 "anthropic"
+    model = settings.ACTIVE_LLM_MODEL        # 예: "gpt-4o" 또는 "claude-3-5-sonnet-latest"
+    # 1. OpenAI API 키 환경변수에 세팅
+    if provider == "openai":
+        os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
+        return ChatOpenAI(model=model, temperature=0)
+    elif provider == "anthropic":
+        os.environ["ANTHROPIC_API_KEY"] = settings.ANTHROPIC_API_KEY
+        return ChatAnthropic(model=model, temperature=0)
+    else:
+        raise ValueError("지원하지 않는 LLM provider입니다.")
+
+def resolve_impact_with_ai(release_name, series_info):
+    """AI를 사용하여 series 정보를 기반으로 증시 영향도 (High/Medium/Low)를 판단"""
+    # 1. llm 인스턴스 생성
+    llm = get_llm()
+
+    # 2. 프롬프트 템플릿 준비 및 LLM 체인 생성
+    impact_prompt_template = ChatPromptTemplate.from_template(impact_prompt)
+    impact_chain = impact_prompt_template | llm | StrOutputParser()
+
+    # 3. series_info에서 필요한 정보 추출
+    title = series_info.get("title", "")
+    name = release_name
+    notes = series_info.get("notes", "")
+    source = series_info.get("source", "")
+
+    logger.info(f"[임팩트 추론] LLM 예측 시작: title={title}, name={name}")
+
+    # 4. LLM에 입력값 전달하여 임팩트 예측
+    result = impact_chain.invoke({
+        "title": title,
+        "name": name,
+        "notes": notes,
+        "source": source
+    })
+
+    # 5. 결과 후처리 및 반환
+    result = result.strip().capitalize()
+    if result in ["High", "Medium", "Low"]:
+        logger.info(f"[임팩트 추론] 예측 결과: {result}")
+        return result
+    else:
+        logger.warning(f"[임팩트 추론] 예측 결과가 임팩트 값에 없음. Medium으로 반환: {result}")
+        return "Medium"
+
+def resolve_category_id_with_ai(release_name, series_info: dict) -> str:
     """AI를 사용하여 series 정보를 기반으로 상위 카테고리 ID를 결정"""
-    # TODO: 이 함수는 LLM 호출로 카테고리를 판단하도록 수정 필요.
-    # 임시 더미: 항상 None 반환
-    return None
+    # 1. 카테고리 리스트 정의
+    CATEGORY_LIST = [
+        "GDP", "Employment & Labor", "Inflation", "Interest Rates", "Monetary Policy",
+        "Retail & Consumer Spending", "Manufacturing & Industry", "Housing & Real Estate",
+        "Trade & Exports", "Business Investment", "Government Spending & Debt", "Energy",
+        "Financial Markets", "Productivity", "Consumer Sentiment & Confidence", "Education",
+        "Healthcare", "Agriculture", "Transportation", "Banking & Credit"
+    ]
+
+    # 2. llm 인스턴스 생성
+    llm = get_llm()
+
+    # 3. 프롬프트 템플릿 준비 및 LLM 체인 생성
+    category_prompt_template = ChatPromptTemplate.from_template(category_prompt)
+    category_chain = category_prompt_template | llm | StrOutputParser()
+
+    # 4. series_info에서 필요한 정보 추출
+    title = series_info.get("title", "")
+    name = release_name
+    notes = series_info.get("notes", "")
+    source = series_info.get("source", "")
+
+    logger.info(f"[카테고리 추론] LLM 예측 시작: title={title}, name={name}")
+
+    # 5. LLM에 입력값 전달하여 카테고리 예측
+    result = category_chain.invoke({
+        "title": title,
+        "name": name,
+        "notes": notes,
+        "source": source
+    })
+
+    # 6. 결과 후처리 및 반환
+    result = result.strip()
+    if result in CATEGORY_LIST:
+        logger.info(f"[카테고리 추론] 예측 결과: {result}")
+        return result
+    else:
+        logger.warning(f"[카테고리 추론] 예측 결과가 카테고리 리스트에 없음. Etc로 반환: {result}")
+        return "Etc"
 
 if __name__ == '__main__':
     # 워커 실행
