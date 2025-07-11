@@ -1,5 +1,6 @@
 from os import path, environ
 from functools import lru_cache
+from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 from app.utils.utility import load_json_file
 
@@ -7,6 +8,14 @@ from app.utils.utility import load_json_file
 base_dir = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 media_secret_dir = path.join(base_dir, "secrets")
 app_dir = path.join(base_dir, "app")
+
+
+class DBConnection(BaseModel):
+    SQLALCHEMY_DATABASE_URL: str = ""
+    SQLALCHEMY_POOL_RECYCLE: int = 900
+    SQLALCHEMY_ECHO: bool = False
+    POOL_SIZE: int = 10
+    MAX_OVERFLOW: int = 30
 
 
 class Settings(BaseSettings):
@@ -27,7 +36,8 @@ class Settings(BaseSettings):
     FRED_API_KEY: str = ""
 
     # 데이터베이스 설정
-    DATABASE_URL: str = "postgresql://postgres:password@localhost:5432/market_timing"
+    DATABASE_URL: str = environ.get("DATABASE_URL")
+    DB_INFO: DBConnection = DBConnection(SQLALCHEMY_DATABASE_URL=DATABASE_URL)
 
     # Redis 설정 (Celery용)
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -37,7 +47,7 @@ class Settings(BaseSettings):
     FIREBASE_SECRET_FILE: dict = load_json_file(FIREBASE_SECRET_FILE_PATH)
 
     # AI 모델 설정
-    ACTIVE_LLM_PROVIDER: str = "" # "openai", "anthropic", ...
+    ACTIVE_LLM_PROVIDER: str = ""  # "openai", "anthropic", ...
     ACTIVE_LLM_MODEL: str = "gpt-4-turbo"
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""  # Claude API 키

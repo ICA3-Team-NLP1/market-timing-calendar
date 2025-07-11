@@ -10,8 +10,8 @@ sys.path.insert(0, '/app/background')
 
 import requests
 from backend.app.core.config import settings
-from backend.app.models.events import Event
-from backend.app.models.base import SessionLocal
+from backend.app.models.events import Events
+from backend.app.core.database import db
 # Celery 앱 생성
 app = Celery('background_tasks')
 
@@ -54,7 +54,7 @@ def data_collection_task():
         return f"API 호출 실패: {e}"
 
     # SQLAlchemy를 사용한 DB 저장
-    db = SessionLocal()
+    session = db.session()
     try:
         saved_count = 0
         total_items = len(data.get('release_dates', []))
@@ -68,7 +68,7 @@ def data_collection_task():
                 logger.info(f"진행상황: {idx}/{total_items} 처리 중...")
 
             # 기존 데이터 체크 (중복 방지)
-            existing = db.query(Event).filter_by(
+            existing = session.query(Events).filter_by(
                 release_id=release_id,
                 date=date
             ).first()
@@ -80,7 +80,7 @@ def data_collection_task():
                 series_info = get_representative_series_info(release_id)
 
                 # 이벤트 저장
-                event = Event(
+                event = Events(
                     release_id=release_id,
                     date=date,
                     title=series_info.get("title"),
@@ -92,22 +92,22 @@ def data_collection_task():
 
                 # TODO: title, description이 모두 null인 애들이 있음.
                 # 그런 애들 어떻게 처리할 지 고민민
-                db.add(event)
+                session.add(event)
                 saved_count += 1
             else:
                 logger.debug(f"기존 이벤트 존재: release_id={release_id}, date={date}")
 
         logger.info(f"DB commit 시작...")
-        db.commit()
+        session.commit()
         logger.info(f"DB 저장 완료. 새로 저장된 이벤트: {saved_count}개")
         return f"FRED 데이터 저장 완료. 새로 저장된 이벤트: {saved_count}개"
 
     except Exception as e:
-        db.rollback()
+        session.rollback()
         logger.error(f"DB 저장 실패: {e}")
         return f"DB 저장 실패: {e}"
     finally:
-        db.close()
+        session.close()
 
 def fetch_release_dates():
     """FRED releases/dates API 호출 및 응답 반환"""
