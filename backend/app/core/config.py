@@ -36,6 +36,12 @@ class Settings(BaseSettings):
     FIREBASE_SECRET_FILE_PATH: str = path.join(media_secret_dir, "firebase-key.json")
     FIREBASE_SECRET_FILE: dict = load_json_file(FIREBASE_SECRET_FILE_PATH)
 
+    # AI 모델 설정
+    ACTIVE_LLM_PROVIDER: str = "" # "openai", "anthropic", ...
+    ACTIVE_LLM_MODEL: str = "gpt-4-turbo"
+    OPENAI_API_KEY: str = ""
+    ANTHROPIC_API_KEY: str = ""  # Claude API 키
+
     class Config:
         env_file = ".env"
         extra = "allow"  # 추가 필드 허용
