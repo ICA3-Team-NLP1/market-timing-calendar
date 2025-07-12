@@ -2,9 +2,9 @@ from sqlalchemy.orm import Session
 from datetime import date
 
 from app.crud.base import CRUDBase
-from app.models.events import Events, EventCategory
+from app.models.events import Events
 from app.models.users import UserEventSubscription
-from app.schemas.events import EventResponse, EventCategoryResponse
+from app.schemas.events import EventResponse
 
 
 class CRUDEvents(CRUDBase[Events, None, None]):
@@ -24,8 +24,7 @@ class CRUDEvents(CRUDBase[Events, None, None]):
             구독한 이벤트 목록
         """
         query = (
-            session.query(Events, EventCategory)
-            .join(EventCategory, Events.category_id == EventCategory.id)  # 카테고리 조인
+            session.query(Events)
             .join(UserEventSubscription, Events.id == UserEventSubscription.event_id)  # 구독 조인
             .filter(
                 # 날짜 범위 필터
@@ -43,15 +42,12 @@ class CRUDEvents(CRUDBase[Events, None, None]):
         result = query.all()
         # EventResponse 객체 생성
         events = []
-        for event, category in result:
+        for event in result:
             event_response = EventResponse(
                 title=event.title,
                 description=event.description,
                 date=event.date,
                 impact=event.impact,
-                category=EventCategoryResponse(name=category.name, description=category.description)
-                if category
-                else None,
             )
             events.append(event_response)
 

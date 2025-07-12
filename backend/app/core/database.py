@@ -18,6 +18,16 @@ class _SessionGenerator:
         finally:
             self._session().close()
 
+    def __enter__(self):
+        """Context manager 진입"""
+        self._current_session = self._session()
+        return self._current_session
+    
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        """Context manager 종료"""
+        if hasattr(self, '_current_session'):
+            self._current_session.close()
+
 
 class SQLAlchemy:
     def __init__(self, app=None, **kwargs):

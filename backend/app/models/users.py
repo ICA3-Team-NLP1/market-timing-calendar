@@ -2,7 +2,7 @@ from sqlalchemy import Column, String, Enum, Integer, ForeignKey, Index, TIMESTA
 from sqlalchemy.orm import relationship
 
 from app.models.base import BaseModel
-from app.models.events import Events, EventCategory
+from app.models.events import Events
 from app.constants import UserLevel
 
 
@@ -17,9 +17,6 @@ class Users(BaseModel):
 
     user_subscriptions = relationship(
         "UserEventSubscription", back_populates="users", cascade="all, delete-orphan", passive_deletes=True
-    )
-    user_interest_categories = relationship(
-        "UserInterestCategory", back_populates="users", cascade="all, delete-orphan", passive_deletes=True
     )
     user_google_calendar = relationship(
         "UserGoogleCalendar", back_populates="users", cascade="all, delete-orphan", passive_deletes=True
@@ -44,16 +41,6 @@ class UserEventSubscription(BaseModel):
 
     users = relationship("Users", back_populates="user_subscriptions")
     events = relationship("Events", back_populates="user_subscriptions")
-
-
-class UserInterestCategory(BaseModel):
-    __table_args__ = (Index("idx_users_event_category", "user_id", "category_id", unique=True),)
-    user_id = Column(ForeignKey(Users.id, ondelete="CASCADE"), nullable=False)
-    category_id = Column(ForeignKey(EventCategory.id, ondelete="CASCADE"), nullable=False)
-
-    users = relationship("Users", back_populates="user_interest_categories")
-    category = relationship("EventCategory", back_populates="user_interest_categories")
-
 
 class UserGoogleCalendar(BaseModel):
     user_id = Column(ForeignKey(Users.id, ondelete="CASCADE"), nullable=False)

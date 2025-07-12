@@ -24,16 +24,6 @@ CREATE TABLE level_feature (
     feature_description TEXT
 );
 
--- 일정 카테고리 테이블
-CREATE TABLE event_category (
-    id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    dropped_at TIMESTAMP NULL,
-    name VARCHAR(100) NOT NULL,
-    description TEXT
-);
-
 -- 일정 테이블
 CREATE TABLE events (
     id SERIAL PRIMARY KEY,
@@ -45,20 +35,8 @@ CREATE TABLE events (
     description TEXT,
     date DATE NOT NULL,
     impact VARCHAR(20),
-    source VARCHAR(50) NOT NULL,
-    category_id INTEGER REFERENCES event_category(id) ON DELETE SET NULL
+    source VARCHAR(50) NOT NULL
 );
-
--- 일정-카테고리 매핑 테이블 (다대다 관계용, 필요시)
--- CREATE TABLE event_category_map (
---     id SERIAL PRIMARY KEY,
---     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
---     dropped_at TIMESTAMP NULL,
---     event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
---     category_id INTEGER NOT NULL REFERENCES event_category(id) ON DELETE CASCADE,
---     CONSTRAINT idx_event_category_map UNIQUE (event_id, category_id)
--- );
 
 -- 사용자-일정 구독/캘린더 연동 테이블
 CREATE TABLE user_event_subscription (
@@ -95,17 +73,6 @@ CREATE TABLE event_webhook (
     event_payload JSONB NOT NULL,
     status VARCHAR(20) NOT NULL DEFAULT 'pending',
     processed_at TIMESTAMP
-);
-
--- 사용자 관심 카테고리 테이블
-CREATE TABLE user_interest_category (
-    id SERIAL PRIMARY KEY,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    dropped_at TIMESTAMP NULL,
-    user_id INTEGER NOT NULL REFERENCES "users"(id) ON DELETE CASCADE,
-    category_id INTEGER NOT NULL REFERENCES event_category(id) ON DELETE CASCADE,
-    CONSTRAINT idx_users_event_category UNIQUE (user_id, category_id)
 );
 
 -- 인덱스 및 제약조건 추가 (필요시)
