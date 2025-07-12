@@ -12,6 +12,10 @@ import requests
 from backend.app.core.config import settings
 from backend.app.models.events import Events
 from backend.app.core.database import db
+
+# DB 초기화
+db.init_db(settings.DB_INFO)
+
 # Celery 앱 생성
 app = Celery('background_tasks')
 
@@ -54,60 +58,57 @@ def data_collection_task():
         return f"API 호출 실패: {e}"
 
     # SQLAlchemy를 사용한 DB 저장
-    session = db.session()
+    # Context manager를 사용하여 세션 관리
     try:
-        saved_count = 0
-        total_items = len(data.get('release_dates', []))
-        logger.info(f"총 {total_items}개 release_dates 처리 시작")
+        with db.session as session:
+            saved_count = 0
+            total_items = len(data.get('release_dates', []))
+            logger.info(f"총 {total_items}개 release_dates 처리 시작")
 
-        for idx, item in enumerate(data.get('release_dates', []), 1):
-            release_id = str(item.get('release_id'))  # 문자열로 변환
-            date = item.get('date')
+            for idx, item in enumerate(data.get('release_dates', []), 1):
+                release_id = str(item.get('release_id'))  # 문자열로 변환
+                date = item.get('date')
 
-            if idx % 50 == 0:  # 50개마다 진행상황 로그
-                logger.info(f"진행상황: {idx}/{total_items} 처리 중...")
+                if idx % 50 == 0:  # 50개마다 진행상황 로그
+                    logger.info(f"진행상황: {idx}/{total_items} 처리 중...")
 
-            # 기존 데이터 체크 (중복 방지)
-            existing = session.query(Events).filter_by(
-                release_id=release_id,
-                date=date
-            ).first()
-
-            if not existing:
-                logger.debug(f"새 이벤트 생성: release_id={release_id}, date={date}")
-                # 추가 정보 확보: release 이름, 대표 시리즈 title/notes 등 가져오기
-                release_info = get_release_metadata(release_id)
-                series_info = get_representative_series_info(release_id)
-
-                # 이벤트 저장
-                event = Events(
+                # 기존 데이터 체크 (중복 방지)
+                existing = session.query(Events).filter_by(
                     release_id=release_id,
-                    date=date,
-                    title=series_info.get("title"),
-                    description=series_info.get("notes"),
-                    impact=resolve_impact_with_ai(release_info.get("name", ""), series_info),
-                    category_id=resolve_category_id_with_ai(release_info.get("name", ""), series_info),
-                    source="FRED"
-                )
+                    date=date
+                ).first()
 
-                # TODO: title, description이 모두 null인 애들이 있음.
-                # 그런 애들 어떻게 처리할 지 고민민
-                session.add(event)
-                saved_count += 1
-            else:
-                logger.debug(f"기존 이벤트 존재: release_id={release_id}, date={date}")
+                if not existing:
+                    logger.debug(f"새 이벤트 생성: release_id={release_id}, date={date}")
+                    # 추가 정보 확보: release 이름, 대표 시리즈 title/notes 등 가져오기
+                    release_info = get_release_metadata(release_id)
+                    series_info = get_representative_series_info(release_id)
 
-        logger.info(f"DB commit 시작...")
-        session.commit()
-        logger.info(f"DB 저장 완료. 새로 저장된 이벤트: {saved_count}개")
-        return f"FRED 데이터 저장 완료. 새로 저장된 이벤트: {saved_count}개"
+                    # 이벤트 저장
+                    event = Events(
+                        release_id=release_id,
+                        date=date,
+                        title=series_info.get("title"),
+                        description=series_info.get("notes"),
+                        impact=resolve_impact_with_ai(release_info.get("name", ""), series_info),
+                        source="FRED"
+                    )
+
+                    # TODO: title, description이 모두 null인 애들이 있음.
+                    # 그런 애들 어떻게 처리할 지 고민민
+                    session.add(event)
+                    saved_count += 1
+                else:
+                    logger.debug(f"기존 이벤트 존재: release_id={release_id}, date={date}")
+
+            logger.info(f"DB commit 시작...")
+            session.commit()
+            logger.info(f"DB 저장 완료. 새로 저장된 이벤트: {saved_count}개")
+            return f"FRED 데이터 저장 완료. 새로 저장된 이벤트: {saved_count}개"
 
     except Exception as e:
-        session.rollback()
         logger.error(f"DB 저장 실패: {e}")
         return f"DB 저장 실패: {e}"
-    finally:
-        session.close()
 
 def fetch_release_dates():
     """FRED releases/dates API 호출 및 응답 반환"""
@@ -170,7 +171,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
-from background.prompts.etl_prompts import category_prompt, impact_prompt
+from background.prompts.etl_prompts import impact_prompt
 
 def get_llm():
     provider = settings.ACTIVE_LLM_PROVIDER  # 예: "openai" 또는 "anthropic"
@@ -218,49 +219,6 @@ def resolve_impact_with_ai(release_name, series_info):
     else:
         logger.warning(f"[임팩트 추론] 예측 결과가 임팩트 값에 없음. Medium으로 반환: {result}")
         return "Medium"
-
-def resolve_category_id_with_ai(release_name, series_info: dict) -> str:
-    """AI를 사용하여 series 정보를 기반으로 상위 카테고리 ID를 결정"""
-    # 1. 카테고리 리스트 정의
-    CATEGORY_LIST = [
-        "GDP", "Employment & Labor", "Inflation", "Interest Rates", "Monetary Policy",
-        "Retail & Consumer Spending", "Manufacturing & Industry", "Housing & Real Estate",
-        "Trade & Exports", "Business Investment", "Government Spending & Debt", "Energy",
-        "Financial Markets", "Productivity", "Consumer Sentiment & Confidence", "Education",
-        "Healthcare", "Agriculture", "Transportation", "Banking & Credit"
-    ]
-
-    # 2. llm 인스턴스 생성
-    llm = get_llm()
-
-    # 3. 프롬프트 템플릿 준비 및 LLM 체인 생성
-    category_prompt_template = ChatPromptTemplate.from_template(category_prompt)
-    category_chain = category_prompt_template | llm | StrOutputParser()
-
-    # 4. series_info에서 필요한 정보 추출
-    title = series_info.get("title", "")
-    name = release_name
-    notes = series_info.get("notes", "")
-    source = series_info.get("source", "")
-
-    logger.info(f"[카테고리 추론] LLM 예측 시작: title={title}, name={name}")
-
-    # 5. LLM에 입력값 전달하여 카테고리 예측
-    result = category_chain.invoke({
-        "title": title,
-        "name": name,
-        "notes": notes,
-        "source": source
-    })
-
-    # 6. 결과 후처리 및 반환
-    result = result.strip()
-    if result in CATEGORY_LIST:
-        logger.info(f"[카테고리 추론] 예측 결과: {result}")
-        return result
-    else:
-        logger.warning(f"[카테고리 추론] 예측 결과가 카테고리 리스트에 없음. Etc로 반환: {result}")
-        return "Etc"
 
 if __name__ == '__main__':
     # 워커 실행

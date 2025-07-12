@@ -25,8 +25,8 @@ class BaseModel(Base):
     @declared_attr
     def __tablename__(cls) -> str:
         """
-        ex) -> EventCategory
-        :return: event_category
+        ex) -> LevelFeature
+        :return: level_feature
         """
         pattern = re.compile(r"(?<!^)(?=[A-Z])")
         return pattern.sub("_", cls.__name__).lower()
