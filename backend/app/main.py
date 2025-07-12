@@ -9,6 +9,7 @@ from starlette.responses import FileResponse
 from starlette.staticfiles import StaticFiles
 
 from app.core.config import settings
+from app.core.database import db
 
 
 @asynccontextmanager
@@ -16,6 +17,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """FastAPI 앱 라이프사이클 관리"""
     try:
         logger.info("애플리케이션 시작 완료")
+        db.startup()
         yield
 
     except Exception as e:
@@ -23,7 +25,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         raise
     finally:
         # 정리 작업
-        ...
+        db.shutdown()
 
 
 # FastAPI 앱 생성
@@ -46,6 +48,8 @@ def create_app():
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    db.init_db(settings.DB_INFO)
 
     # API 라우터 등록
     from app.api.index import router

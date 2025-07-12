@@ -169,6 +169,9 @@ market-timing-calendar/
 │   │   ├── core/          # 핵심 설정
 │   │   │   ├── config.py  # 환경 설정
 │   │   │   └── firebase.py # Firebase Auth
+│   │   ├── crud/          # CRUD 작업
+│   │   ├── models/        # SQLAlchemy 모델
+│   │   ├── schemas/       # Pydantic 스키마
 │   │   └── utils/         # 유틸 함수
 │   ├── secrets            # 보안 관련 로컬 파일(gitignore)
 │   └── requirements.txt

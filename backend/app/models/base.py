@@ -1,22 +1,32 @@
-"""
-SQLAlchemy Base 클래스
-"""
-from sqlalchemy import create_engine
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker
-from backend.app.core.config import settings
+import re
 
-# SQLAlchemy 설정
-engine = create_engine(settings.DATABASE_URL)
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+from sqlalchemy import Column, Integer, func
+from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.dialects.postgresql import TIMESTAMP
+from sqlalchemy.ext.declarative import declared_attr
 
-# Base 클래스
-Base = declarative_base()
 
-def get_db():
-    """데이터베이스 세션 생성"""
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close() 
+class Base(DeclarativeBase):
+    pass
+
+
+class BaseModel(Base):
+    __abstract__ = True
+    id = Column(Integer, primary_key=True, index=True)
+    created_at = Column(
+        TIMESTAMP, nullable=False, server_default=func.current_timestamp(), default=func.current_timestamp()
+    )
+    updated_at = Column(
+        TIMESTAMP, nullable=False, server_default=func.current_timestamp(), default=func.current_timestamp()
+    )
+    dropped_at = Column(TIMESTAMP, nullable=True)
+    __table_args__ = {"schema": "public"}
+
+    @declared_attr
+    def __tablename__(cls) -> str:
+        """
+        ex) -> EventCategory
+        :return: event_category
+        """
+        pattern = re.compile(r"(?<!^)(?=[A-Z])")
+        return pattern.sub("_", cls.__name__).lower()
