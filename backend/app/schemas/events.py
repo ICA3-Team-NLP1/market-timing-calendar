@@ -8,6 +8,7 @@ class EventResponse(BaseModel):
     description: str | None = None
     date: date
     impact: str | None = None
+    level: str | None = None
 
     class Config:
         from_attributes = True

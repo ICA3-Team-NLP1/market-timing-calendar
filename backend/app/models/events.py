@@ -5,7 +5,7 @@ from sqlalchemy import Column, String, Date, Text, ForeignKey, Index, Enum, TIME
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from ..models.base import BaseModel
-from ..constants import ImpactLevel, EventStatus
+from ..constants import ImpactLevel, EventStatus, UserLevel
 
 
 class Events(BaseModel):
@@ -16,6 +16,7 @@ class Events(BaseModel):
     description = Column(Text, nullable=True)
     date = Column(Date, nullable=False, index=True)
     impact = Column(Enum(ImpactLevel, native_enum=False, validate_strings=True), nullable=True)
+    level = Column(Enum(UserLevel, native_enum=False, validate_strings=True), nullable=True)
     release_id = Column(String(50), nullable=False, index=True)
     source = Column(String(50), nullable=False, default="FRED")
 

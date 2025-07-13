@@ -48,6 +48,7 @@ class CRUDEvents(CRUDBase[Events, None, None]):
                 description=event.description,
                 date=event.date,
                 impact=event.impact,
+                level=event.level,
             )
             events.append(event_response)
 
