@@ -9,6 +9,7 @@ sys.path.insert(0, '/app/backend')
 sys.path.insert(0, '/app/background')
 
 import requests
+from backend.app.constants import UserLevel
 from backend.app.core.config import settings
 from backend.app.models.events import Events
 from backend.app.core.database import db
@@ -91,6 +92,7 @@ def data_collection_task():
                         title=series_info.get("title"),
                         description=series_info.get("notes"),
                         impact=resolve_impact_with_ai(release_info.get("name", ""), series_info),
+                        level=resolve_level_with_ai(release_info.get("name", ""), series_info),
                         source="FRED"
                     )
 
@@ -171,7 +173,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
-from background.prompts.etl_prompts import impact_prompt
+from background.prompts.etl_prompts import impact_prompt, level_prompt
 
 def get_llm():
     provider = settings.ACTIVE_LLM_PROVIDER  # 예: "openai" 또는 "anthropic"
@@ -219,6 +221,41 @@ def resolve_impact_with_ai(release_name, series_info):
     else:
         logger.warning(f"[임팩트 추론] 예측 결과가 임팩트 값에 없음. Medium으로 반환: {result}")
         return "Medium"
+
+
+def resolve_level_with_ai(release_name, series_info):
+    """AI를 사용하여 series 정보를 기반으로 학습 레벨 (BEGINNER/INTERMEDIATE/ADVANCED)을 판단"""
+    # 1. llm 인스턴스 생성
+    llm = get_llm()
+
+    # 2. 프롬프트 템플릿 준비 및 LLM 체인 생성
+    level_prompt_template = ChatPromptTemplate.from_template(level_prompt)
+    level_chain = level_prompt_template | llm | StrOutputParser()
+
+    # 3. series_info에서 필요한 정보 추출
+    title = series_info.get("title", "")
+    name = release_name
+    notes = series_info.get("notes", "")
+    source = series_info.get("source", "")
+
+    logger.info(f"[레벨 추론] LLM 예측 시작: title={title}, name={name}")
+
+    # 4. LLM에 입력값 전달하여 레벨 예측
+    result = level_chain.invoke({
+        "title": title,
+        "name": name,
+        "notes": notes,
+        "source": source
+    })
+
+    # 5. 결과 후처리 및 반환
+    result = result.strip()
+    if result in [level.value for level in UserLevel]:
+        logger.info(f"[레벨 추론] 예측 결과: {result}")
+        return result
+    else:
+        logger.warning(f"[레벨 추론] 예측 결과가 레벨 값에 없음. ADVANCED로 반환: {result}")
+        return UserLevel.ADVANCED.value
 
 if __name__ == '__main__':
     # 워커 실행

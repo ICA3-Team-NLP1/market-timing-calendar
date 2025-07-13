@@ -35,6 +35,7 @@ CREATE TABLE events (
     description TEXT,
     date DATE NOT NULL,
     impact VARCHAR(20),
+    level VARCHAR(20),
     source VARCHAR(50) NOT NULL
 );
 
