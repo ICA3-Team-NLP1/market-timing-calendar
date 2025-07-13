@@ -10,6 +10,8 @@ from starlette.staticfiles import StaticFiles
 
 from app.core.config import settings
 from app.core.database import db
+# 모델들을 import해야 SQLAlchemy가 테이블을 인식할 수 있음
+from app.models import *
 
 
 @asynccontextmanager

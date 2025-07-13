@@ -1,5 +1,5 @@
 -- 사용자 테이블
-CREATE TABLE "users" (
+CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -45,7 +45,7 @@ CREATE TABLE user_event_subscription (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     dropped_at TIMESTAMP NULL,
-    user_id INTEGER NOT NULL REFERENCES "users"(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
     subscribed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT idx_users_event_subscription UNIQUE (user_id, event_id) -- unique 인덱스 추가
@@ -57,7 +57,7 @@ CREATE TABLE user_google_calendar (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     dropped_at TIMESTAMP NULL,
-    user_id INTEGER NOT NULL REFERENCES "users"(id) ON DELETE CASCADE,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     google_calendar_id VARCHAR(255) NOT NULL,
     access_token TEXT NOT NULL,
     refresh_token TEXT NOT NULL,
