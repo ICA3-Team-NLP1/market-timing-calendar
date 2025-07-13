@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     FIREBASE_SECRET_FILE: dict = load_json_file(FIREBASE_SECRET_FILE_PATH)
 
     # AI 모델 설정
-    ACTIVE_LLM_PROVIDER: str = ""  # "openai", "anthropic", ...
+    ACTIVE_LLM_PROVIDER: str = ""  # "openai", "anthropic", ... (빈 문자열이면 자동으로 openai 사용)
     ACTIVE_LLM_MODEL: str = "gpt-4-turbo"
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""  # Claude API 키
