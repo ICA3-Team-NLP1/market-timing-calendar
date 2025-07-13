@@ -1,5 +1,3 @@
-version: '3.3'
-
 services:
   # 메인 애플리케이션 (Frontend + Backend 통합)
   app:
@@ -89,8 +87,15 @@ services:
       # 외부 API (데이터 수집용)
       - FRED_API_KEY=${FRED_API_KEY:-your_fred_api_key}
       - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-your_openai_api_key}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-sk-ant-your_anthropic_api_key}
       - YAHOO_FINANCE_API_KEY=${YAHOO_FINANCE_API_KEY:-your_yahoo_finance_key}
       - KOREA_BANK_API_KEY=${KOREA_BANK_API_KEY:-your_korea_bank_api_key}
+      # LLM 설정
+      - ACTIVE_LLM_PROVIDER=${ACTIVE_LLM_PROVIDER:-anthropic}
+      - ACTIVE_LLM_MODEL=${ACTIVE_LLM_MODEL:-claude-3-5-sonnet-latest}
+      - LLM_BATCH_SIZE=${LLM_BATCH_SIZE:-10}
+      - LLM_API_DELAY=${LLM_API_DELAY:-0.5}
+      - LLM_MAX_RETRIES=${LLM_MAX_RETRIES:-3}
       # 앱 설정
       - DEBUG=true
     depends_on:
