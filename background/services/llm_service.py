@@ -12,7 +12,7 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 # core 모듈의 공통 LLM 로직 사용
-from backend.app.core.llm import LLMFactory, BaseLLMProvider
+from backend.app.core.llm import LLMFactory, BaseLLMProvider, LangfuseManager
 from backend.app.constants import UserLevel, ImpactLevel
 from background.prompts.etl_prompts import impact_prompt, level_prompt
 
@@ -109,6 +109,8 @@ class LLMInferenceService:
             InferenceType.IMPACT: ImpactInferenceStrategy(),
             InferenceType.LEVEL: LevelInferenceStrategy(),
         }
+        # Langfuse Manager 초기화
+        self.langfuse_manager = LangfuseManager(service_name="background_etl")
     
     def infer(
         self,
@@ -156,12 +158,29 @@ class LLMInferenceService:
             "source": series_info.get("source", "")
         }
         
-        logger.info(f"LLM 예측 시작: title={input_data['title']}, name={input_data['name']}")
+        # Langfuse callback 설정 (공통 유틸리티 사용)
+        config = self.langfuse_manager.get_callback_config()
         
-        result = chain.invoke(input_data)
+        logger.info(f"🚀 LLM 예측 시작: title={input_data['title']}, name={input_data['name']}")
+        logger.info(f"📝 Config: {config}")
+        
+        # LLM 호출 및 Langfuse 추적
+        try:
+            result = chain.invoke(input_data, config=config)
+            logger.info(f"✅ LLM 호출 성공: raw_result type={type(result)}")
+        except Exception as e:
+            logger.error(f"❌ LLM 호출 실패: {e}")
+            raise
+        
         processed_result = strategy.process_result(result)
         
-        logger.info(f"LLM 예측 결과: {processed_result}")
+        logger.info(f"🎯 LLM 예측 결과: {processed_result}")
+        
+        # Background 작업이므로 수동으로 flush (중요!)
+        self.langfuse_manager.flush_events()
+        
+        logger.info(f"📊 Langfuse 추적 완료 - 대시보드에서 확인 가능")
+        
         return processed_result
 
 

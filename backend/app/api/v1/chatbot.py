@@ -71,10 +71,10 @@ async def conversation(
     사용자 레벨에 따라 적절한 시스템 프롬프트를 사용합니다.
     """
     messages = _build_messages(db_user.level, req.history, req.question)
-    llm = LLMClient()
+    llm_client = LLMClient()
 
     async def stream():
-        async for chunk in llm.stream_chat(messages):
+        async for chunk in llm_client.stream_chat(messages):
             yield chunk
 
     return StreamingResponse(stream(), media_type="text/plain")
@@ -112,10 +112,10 @@ async def explain_event(
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": event_context},
     ]
-    llm = LLMClient()
+    llm_client = LLMClient()
 
     async def stream():
-        async for chunk in llm.stream_chat(messages):
+        async for chunk in llm_client.stream_chat(messages):
             yield chunk
 
     return StreamingResponse(stream(), media_type="text/plain")
