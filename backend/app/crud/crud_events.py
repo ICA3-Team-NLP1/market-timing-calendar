@@ -9,26 +9,6 @@ from app.constants import UserLevel
 
 
 class CRUDEvents(CRUDBase[Events, None, None]):
-    def get_by_release_id(self, session: Session, release_id: str) -> Events:
-        """
-        release_id로 이벤트 조회
-
-        Args:
-            session: DB 세션
-            release_id: FRED release_id (예: CPILFESL, UNRATE 등)
-
-        Returns:
-            해당 release_id의 이벤트 객체 또는 None
-        """
-        return (
-            session.query(Events)
-            .filter(
-                Events.release_id == release_id,
-                Events.dropped_at.is_(None)  # 삭제되지 않은 이벤트만
-            )
-            .first()
-        )
-
     def get_user_subscription_events(
         self, session: Session, user_id: int, start_date: date, end_date: date
     ) -> list[EventResponse]:
