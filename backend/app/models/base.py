@@ -20,7 +20,7 @@ class BaseModel(Base):
         TIMESTAMP, nullable=False, server_default=func.current_timestamp(), default=func.current_timestamp()
     )
     dropped_at = Column(TIMESTAMP, nullable=True)
-    __table_args__ = {"schema": "public", "extend_existing": True}
+    __table_args__ = {"schema": "public"}
 
     @declared_attr
     def __tablename__(cls) -> str:

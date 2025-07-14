@@ -10,9 +10,8 @@ from ..constants import ImpactLevel, EventStatus, UserLevel
 
 class Events(BaseModel):
     """경제 이벤트/지표 모델"""
-    
-    __tablename__ = "events"
-    __table_args__ = (Index("idx_event_date", "date", unique=True), {"extend_existing": True})
+
+    __table_args__ = (Index("idx_event_date", "date", unique=True),)
     title = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)
     date = Column(Date, nullable=False, index=True)
@@ -21,12 +20,14 @@ class Events(BaseModel):
     release_id = Column(String(50), nullable=False, index=True)
     source = Column(String(50), nullable=False, default="FRED")
 
+    # user_subscriptions = relationship(
+    #     "UserEventSubscription", back_populates="events", cascade="all, delete-orphan", passive_deletes=True
+    # )
+
     def __repr__(self):
         return f"<Events(id={self.id}, release_id={self.release_id}, date={self.date}, title='{self.title}')>"
 
 class EventWebhook(BaseModel):
-    __tablename__ = "event_webhook"
-    
     event_type = Column(String(100), nullable=False)
     event_payload = Column(JSONB, nullable=False)
     level = Column(

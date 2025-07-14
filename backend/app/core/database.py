@@ -59,11 +59,6 @@ class SQLAlchemy:
 
     def startup(self):
         self._engine.connect()
-        # 모델들을 import한 후 테이블 생성
-        from app.models.base import Base
-        
-        # 테이블 생성 - 모든 모델이 import된 후 호출됨
-        Base.metadata.create_all(bind=self._engine)
 
     def shutdown(self):
         self.clear_session()
