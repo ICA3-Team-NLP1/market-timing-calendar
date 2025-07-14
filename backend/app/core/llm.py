@@ -5,14 +5,92 @@ import os
 import logging
 from abc import ABC, abstractmethod
 from enum import Enum
-from typing import Any
+from typing import Any, Optional
 
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 
 from app.core.config import settings
 
+# Langfuse 임포트 (선택적)
+try:
+    from langfuse.langchain import CallbackHandler
+    LANGFUSE_AVAILABLE = True
+except ImportError:
+    LANGFUSE_AVAILABLE = False
+    CallbackHandler = None
+
 logger = logging.getLogger(__name__)
+
+
+class LangfuseManager:
+    """Langfuse 관련 공통 유틸리티"""
+    
+    def __init__(self, service_name: str = "llm"):
+        self.service_name = service_name
+        self.handler: Optional[CallbackHandler] = None
+        self._initialize_handler()
+    
+    def _initialize_handler(self) -> None:
+        """Langfuse CallbackHandler 초기화"""
+        if not LANGFUSE_AVAILABLE:
+            logger.info(f"[{self.service_name}] Langfuse가 설치되지 않음, 모니터링 비활성화")
+            return
+        
+        try:
+            # 필수 설정이 있는 경우에만 Langfuse handler 생성
+            if settings.LANGFUSE_PUBLIC_KEY and settings.LANGFUSE_SECRET_KEY:
+                # Settings에서 읽은 값을 환경변수로 설정 (Langfuse가 읽을 수 있도록)
+                self._set_environment_variables()
+                
+                # CallbackHandler 생성 및 테스트
+                self.handler = CallbackHandler()
+                logger.info(f"✅ [{self.service_name}] Langfuse CallbackHandler 생성 성공: {type(self.handler)}")
+                
+            else:
+                logger.info(f"[{self.service_name}] Langfuse 키가 설정되지 않음, 모니터링 비활성화")
+        except Exception as e:
+            logger.warning(f"[{self.service_name}] Langfuse 초기화 실패: {e}")
+            import traceback
+            logger.warning(f"[{self.service_name}] 상세 오류: {traceback.format_exc()}")
+    
+    def _set_environment_variables(self) -> None:
+        """Langfuse 환경변수 설정"""
+        os.environ['LANGFUSE_PUBLIC_KEY'] = settings.LANGFUSE_PUBLIC_KEY
+        os.environ['LANGFUSE_SECRET_KEY'] = settings.LANGFUSE_SECRET_KEY
+        os.environ['LANGFUSE_HOST'] = settings.LANGFUSE_HOST
+        
+        logger.info(f"✅ [{self.service_name}] Langfuse 환경변수 설정 완료: {settings.LANGFUSE_HOST}")
+        logger.info(f"🔑 [{self.service_name}] Public Key: {settings.LANGFUSE_PUBLIC_KEY[:15]}...")
+    
+    def get_callback_config(self) -> dict:
+        """LLM 호출에 사용할 callback config 반환"""
+        config = {}
+        if self.handler:
+            config["callbacks"] = [self.handler]
+            logger.info(f"🎯 [{self.service_name}] Langfuse callback 설정됨: {type(self.handler)}")
+        else:
+            logger.warning(f"⚠️ [{self.service_name}] Langfuse handler가 없음 - 모니터링 불가")
+        return config
+    
+    def flush_events(self) -> None:
+        """Langfuse 이벤트를 서버로 전송 (Background 작업용)"""
+        if not self.handler:
+            return
+            
+        try:
+            from langfuse import get_client
+            client = get_client()
+            if client:
+                client.flush()
+                logger.info(f"📤 [{self.service_name}] Langfuse 이벤트 서버 전송 완료")
+        except Exception as e:
+            logger.warning(f"⚠️ [{self.service_name}] Langfuse flush 실패: {e}")
+    
+    @property
+    def is_available(self) -> bool:
+        """Langfuse handler가 사용 가능한지 확인"""
+        return self.handler is not None
 
 
 class LLMProviderType(str, Enum):

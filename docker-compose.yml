@@ -23,6 +23,12 @@ services:
       # 외부 API
       - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-your_openai_api_key}
       - RESEND_API_KEY=${RESEND_API_KEY:-re_your_resend_api_key}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-sk-ant-your_anthropic_api_key}
+
+      # Langfuse 모니터링  
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-https://us.cloud.langfuse.com}
 
       # 앱 설정
       - NODE_ENV=development
@@ -96,6 +102,10 @@ services:
       - LLM_BATCH_SIZE=${LLM_BATCH_SIZE:-10}
       - LLM_API_DELAY=${LLM_API_DELAY:-0.5}
       - LLM_MAX_RETRIES=${LLM_MAX_RETRIES:-3}
+      # Langfuse 모니터링
+      - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
+      - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
+      - LANGFUSE_HOST=${LANGFUSE_HOST:-https://cloud.langfuse.com}
       # 앱 설정
       - DEBUG=true
     depends_on:

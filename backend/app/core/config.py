@@ -51,6 +51,11 @@ class Settings(BaseSettings):
     ACTIVE_LLM_MODEL: str = "gpt-4-turbo"
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""  # Claude API 키
+    
+    # Langfuse 설정
+    LANGFUSE_PUBLIC_KEY: str = ""
+    LANGFUSE_SECRET_KEY: str = ""
+    LANGFUSE_HOST: str = "https://us.cloud.langfuse.com"
 
     class Config:
         env_file = ".env"
