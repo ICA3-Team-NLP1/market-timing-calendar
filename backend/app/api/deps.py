@@ -57,5 +57,6 @@ async def get_or_create_user(
         db_user = crud_users.create(
             session, obj_in=UsersCreate(uid=uid, name=current_user["name"], email=current_user["email"])
         )
+        session.commit()
     request.state.uid = uid
     return db_user
