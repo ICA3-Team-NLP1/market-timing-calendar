@@ -4,11 +4,11 @@ from datetime import date
 from app.crud.base import CRUDBase
 from app.models.events import Events
 from app.models.users import UserEventSubscription
-from app.schemas.events import EventResponse
+from app.schemas.events import EventResponse, EventCreate
 from app.constants import UserLevel
 
 
-class CRUDEvents(CRUDBase[Events, None, None]):
+class CRUDEvents(CRUDBase[Events, EventCreate, None]):
     def get_by_release_id(self, session: Session, release_id: str) -> Events:
         """
         release_id로 이벤트 조회
@@ -22,15 +22,12 @@ class CRUDEvents(CRUDBase[Events, None, None]):
         """
         return (
             session.query(Events)
-            .filter(
-                Events.release_id == release_id,
-                Events.dropped_at.is_(None)  # 삭제되지 않은 이벤트만
-            )
+            .filter(Events.release_id == release_id, Events.dropped_at.is_(None))  # 삭제되지 않은 이벤트만
             .first()
         )
 
     def get_user_subscription_events(
-        self, session: Session, user_id: int, start_date: date, end_date: date
+        self, session: Session, user_id: int, start_date: date, end_date: date, user_level: UserLevel = None
     ) -> list[EventResponse]:
         """
         유저가 구독 중인 이벤트 목록 반환
@@ -40,6 +37,7 @@ class CRUDEvents(CRUDBase[Events, None, None]):
             user_id: DB User ID
             start_date: 조회 시작 날짜
             end_date: 조회 종료 날짜
+            user_level: 유저 레벨
 
         Returns:
             구독한 이벤트 목록
@@ -59,6 +57,8 @@ class CRUDEvents(CRUDBase[Events, None, None]):
             )
             .order_by(Events.date.asc())  # 날짜 순 정렬
         )
+        if user_level:
+            query = query.filter(Events.level == user_level)
 
         result = query.all()
         # EventResponse 객체 생성

@@ -20,7 +20,10 @@ class BaseModel(Base):
         TIMESTAMP, nullable=False, server_default=func.current_timestamp(), default=func.current_timestamp()
     )
     dropped_at = Column(TIMESTAMP, nullable=True)
-    __table_args__ = {"schema": "public", "extend_existing": True}
+
+    # 스키마 설정 제거 - SQL 초기화 스크립트와 일치시키기 위함
+    # 모든 테이블이 기본 스키마(public)를 사용하도록 통일
+    __table_args__ = {"extend_existing": True}
 
     @declared_attr
     def __tablename__(cls) -> str:
