@@ -5,7 +5,7 @@ class UserLevel(str, Enum):
     BEGINNER = "BEGINNER"
     INTERMEDIATE = "INTERMEDIATE"
     ADVANCED = "ADVANCED"
-
+    UNCATEGORIZED = "UNCATEGORIZED"
 
 class ImpactLevel(str, Enum):
     HIGH = "HIGH"

@@ -35,8 +35,11 @@ CREATE TABLE events (
     description TEXT,
     date DATE NOT NULL,
     impact VARCHAR(20),
-    level VARCHAR(20),
-    source VARCHAR(50) NOT NULL
+    level VARCHAR(20) DEFAULT 'UNCATEGORIZED',
+    source VARCHAR(50) NOT NULL,
+    popularity INTEGER DEFAULT 1,
+    description_ko VARCHAR(500) DEFAULT '',
+    level_category VARCHAR(100) DEFAULT 'UNCATEGORIZED'
 );
 
 -- 사용자-일정 구독/캘린더 연동 테이블

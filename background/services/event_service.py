@@ -37,9 +37,12 @@ class EventData:
     date: str
     title: Optional[str] = None
     description: Optional[str] = None
+    description_ko: Optional[str] = None
+    popularity: Optional[int] = None
     impact: str = "MEDIUM"
     level: str = "ADVANCED"
     source: str = "FRED"
+    level_category: Optional[str] = None  # 레벨 분류 (지표명)
 
 
 class EventMapper:
@@ -49,7 +52,7 @@ class EventMapper:
         self.llm_service = llm_service
     
     def map_to_event_data(self, release_info: ReleaseInfo) -> EventData:
-        """ReleaseInfo를 EventData로 변환"""
+        """ReleaseInfo를 EventData로 변환 (LLM 기반 레벨 분류)"""
         try:
             # LLM 추론 실행
             series_info = {
@@ -57,29 +60,45 @@ class EventMapper:
                 "notes": release_info.notes,
                 "source": release_info.source
             }
-            
             impact = self.llm_service.infer(
                 InferenceType.IMPACT,
                 release_info.name or "",
                 series_info
             )
-            
-            level = self.llm_service.infer(
+            # 레벨 분류 LLM 추론 (JSON 응답)
+            level_json = self.llm_service.infer(
                 InferenceType.LEVEL,
                 release_info.name or "",
                 series_info
             )
-            
+            try:
+                import json
+                level_info = json.loads(level_json)
+                level = level_info.get("level", "UNCATEGORIZED")
+                level_category = level_info.get("level_category", "UNCATEGORIZED")
+            except Exception:
+                level = "UNCATEGORIZED"
+                level_category = "UNCATEGORIZED"
+            # 한글 요약
+            logger.info(f"🔍 description_ko 추론 시작 - InferenceType.DESCRIPTION_KO: {InferenceType.DESCRIPTION_KO}")
+            description_ko = self.llm_service.infer(
+                InferenceType.DESCRIPTION_KO,
+                release_info.name or "",
+                series_info
+            )
+            logger.info(f"✅ description_ko 추론 완료: {description_ko[:50]}...")
             return EventData(
                 release_id=release_info.release_id,
                 date=release_info.date,
                 title=release_info.title,
                 description=release_info.notes,
+                description_ko=description_ko,
+                popularity=release_info.popularity,
                 impact=impact,
                 level=level,
-                source="FRED"
+                source="FRED",
+                level_category=level_category
             )
-            
         except Exception as e:
             logger.error(f"매핑 중 오류 (release_id={release_info.release_id}): {e}")
             # 기본값으로 fallback
@@ -88,9 +107,12 @@ class EventMapper:
                 date=release_info.date,
                 title=release_info.title,
                 description=release_info.notes,
+                description_ko="",
+                popularity=release_info.popularity,
                 impact="MEDIUM",
-                level="ADVANCED",
-                source="FRED"
+                level="UNCATEGORIZED",
+                source="FRED",
+                level_category="UNCATEGORIZED"
             )
 
 
@@ -117,7 +139,10 @@ class EventRepository:
                     description=event_data.description,
                     impact=event_data.impact,
                     level=event_data.level,
-                    source=event_data.source
+                    source=event_data.source,
+                    popularity=event_data.popularity,
+                    description_ko=event_data.description_ko,
+                    level_category=event_data.level_category
                 )
                 
                 session.add(event)
@@ -142,7 +167,10 @@ class EventRepository:
                         description=event_data.description,
                         impact=event_data.impact,
                         level=event_data.level,
-                        source=event_data.source
+                        source=event_data.source,
+                        popularity=event_data.popularity,
+                        description_ko=event_data.description_ko,
+                        level_category=event_data.level_category
                     )
                     session.add(event)
                     saved_count += 1
@@ -226,4 +254,4 @@ class EventService:
             f"스킵: {stats.skipped_count}개, 성공률: {stats.success_rate:.1f}%"
         )
         
-        return stats 
+        return stats
