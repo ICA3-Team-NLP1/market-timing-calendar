@@ -3,14 +3,18 @@
 
 echo "🚀 테스트 시작..."
 
-# postgres-test가 실행 중인지 확인
+# postgres가 실행 중인지 확인
 if ! docker-compose ps postgres | grep -q "Up"; then
-    echo "❌ postgres-test 서비스가 실행되지 않음. 서비스를 시작합니다..."
+    echo "❌ postgres 서비스가 실행되지 않음. 서비스를 시작합니다..."
     docker-compose up -d postgres
     
-    # postgres-test가 준비될 때까지 대기
+    # postgres가 준비될 때까지 대기
     echo "⏳ 테스트 DB 준비 중..."
-    docker-compose exec postgres bash -c 'until pg_isready -U postgres -d market_timing_test; do sleep 1; done'
+    # 이 명령어는 컨테이너 내부에서 실행되므로, 호스트의 pg_isready가 아닌 컨테이너의 것을 사용합니다.
+    until docker-compose exec postgres pg_isready -U postgres -d market_timing_test -q; do
+      echo "Postgres is unavailable - sleeping"
+      sleep 1
+    done
 fi
 
 # app이 실행 중인지 확인
@@ -23,15 +27,14 @@ if ! docker-compose ps app | grep -q "Up"; then
     sleep 5
 fi
 
-echo "🔧 테스트용 데이터베이스 URL: $TEST_DATABASE_URL"
-echo "🔧 테스트용 데이터베이스 HOST: $TEST_DB_HOST"
-
-# pytest 실행 (TEST_DATABASE_URL을 DATABASE_URL로 오버라이드)
+# pytest 실행. 이제 컨테이너는 시작 시점부터 올바른 환경변수를 가지고 있습니다.
 echo "🧪 pytest 실행 중..."
 docker-compose exec app bash -c "
-    export DATABASE_URL=\$TEST_DATABASE_URL
-    export TEST_DB_HOST=\$TEST_DB_HOST
-    echo '✅ 테스트 DB URL 설정: '\$DATABASE_URL
+    echo '🐍 Installing dependencies for testing...'
+    pip install -r backend/requirements.txt
+    echo '✅ 테스트 환경 변수 확인:'
+    echo '   - DATABASE_URL: \$DATABASE_URL'
+    echo '   - TEST_DB_HOST: \$TEST_DB_HOST'
     python -m pytest backend/tests/ -v --tb=short
 "
 
