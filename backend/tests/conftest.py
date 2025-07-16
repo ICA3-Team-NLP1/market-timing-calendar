@@ -5,12 +5,14 @@ import sys
 import os
 from pathlib import Path
 
+
 # 프로젝트 루트 디렉토리를 Python 경로에 추가
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
 # 테스트 환경 변수 설정 (app 모듈 import 전에 설정)
-TEST_DB_URL = "postgresql://postgres:password@localhost:5432/market_timing_test"
+DB_HOST: str = os.environ["DB_HOST"] if os.environ.get("DB_HOST") else "localhost"
+TEST_DB_URL = os.getenv("TEST_DATABASE_URL", f"postgresql://postgres:password@{DB_HOST}:5432/market_timing_test")
 os.environ["FASTAPI_ENV"] = "test"
 os.environ["DATABASE_URL"] = TEST_DB_URL
 

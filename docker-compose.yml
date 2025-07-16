@@ -10,6 +10,9 @@ services:
     environment:
       # 데이터베이스 연결
       - DATABASE_URL=postgresql://postgres:password@postgres:5432/market_timing
+      # 테스트용 데이터베이스 연결
+      - TEST_DATABASE_URL=postgresql://postgres:password@postgres:5432/market_timing_test
+      - DB_HOST=postgres
 
       # Google OAuth (환경변수에서 로드)
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-your_google_client_id}
@@ -148,6 +151,14 @@ services:
           memory: 512M
         reservations:
           memory: 256M
+    command: >
+      sh -c "
+        docker-entrypoint.sh postgres &
+        until pg_isready -U postgres; do sleep 1; done
+        psql -U postgres -c 'CREATE DATABASE market_timing_test';
+        psql -U postgres -d market_timing_test -f /docker-entrypoint-initdb.d/01-init.sql
+        wait
+      "
 
 # 영속적 볼륨
 volumes:

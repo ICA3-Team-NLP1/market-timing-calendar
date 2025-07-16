@@ -174,11 +174,70 @@ market-timing-calendar/
 │   │   ├── schemas/       # Pydantic 스키마
 │   │   └── utils/         # 유틸 함수
 │   ├── secrets            # 보안 관련 로컬 파일(gitignore)
+│   ├── tests              # pytest 코드
 │   └── requirements.txt
 ├── docker-compose.yml
 ├── Dockerfile
 └── README.md
 ```
+
+---
+
+---
+
+## 🧪 테스트 실행
+
+### 자동 테스트 스크립트 사용 (권장)
+
+```bash
+# 테스트 스크립트 실행 - 모든 것을 자동으로 처리
+./run-tests.sh
+```
+
+### 수동 테스트 실행
+
+#### 1. 서비스 시작
+```bash
+# 필요한 서비스들 시작 (PostgreSQL 포함)
+docker-compose up -d app postgres
+```
+
+#### 2. 테스트 실행
+```bash
+# 모든 테스트 실행
+docker-compose exec app bash -c "
+    export DATABASE_URL=\$TEST_DATABASE_URL
+    python -m pytest backend/tests/ -v
+"
+
+# 특정 테스트 파일만 실행
+docker-compose exec app bash -c "
+    export DATABASE_URL=\$TEST_DATABASE_URL
+    python -m pytest backend/tests/api/test_users_api.py -v
+"
+
+# 패턴 매칭으로 테스트 실행
+docker-compose exec app bash -c "
+    export DATABASE_URL=\$TEST_DATABASE_URL
+    python -m pytest backend/tests/ -k 'user' -v
+"
+```
+
+#### 3. 테스트 결과 확인
+```bash
+# 상세한 실행 결과를 보려면
+docker-compose exec app bash -c "
+    export DATABASE_URL=\$TEST_DATABASE_URL
+    python -m pytest backend/tests/ -v --tb=long --cov=app
+"
+```
+
+### 테스트 환경 정보
+
+#### 데이터베이스 구조
+- **개발용 DB**: `market_timing` (포트 5432)
+- **테스트용 DB**: `market_timing_test` (포트 5432)
+- **단일 PostgreSQL 인스턴스**에서 두 데이터베이스 분리 운영
 
 ---
 
