@@ -70,6 +70,9 @@ class CRUDEvents(CRUDBase[Events, EventCreate, None]):
                 date=event.date,
                 impact=event.impact,
                 level=event.level,
+                popularity=event.popularity,
+                description_ko=event.description_ko,
+                level_category=event.level_category,
             )
             events.append(event_response)
 
@@ -121,6 +124,9 @@ class CRUDEvents(CRUDBase[Events, EventCreate, None]):
                 date=event.date,
                 impact=event.impact,
                 level=event.level,
+                popularity=event.popularity,
+                description_ko=event.description_ko,
+                level_category=event.level_category,
             )
             events.append(event_response)
 

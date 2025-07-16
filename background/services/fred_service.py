@@ -49,6 +49,7 @@ class ReleaseInfo:
     title: Optional[str] = None
     notes: Optional[str] = None
     source: Optional[str] = None
+    popularity: Optional[int] = None
 
 
 class FredApiClient:
@@ -139,7 +140,8 @@ class FredDataProcessor:
                 name=release_metadata.get("name", ""),
                 title=series_info.get("title"),
                 notes=series_info.get("notes"),
-                source=series_info.get("source")
+                source=series_info.get("source"),
+                popularity=series_info.get("popularity")
             )
             
             results.append(release_info)

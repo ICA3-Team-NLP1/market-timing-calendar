@@ -10,6 +10,9 @@ class EventResponse(BaseModel):
     date: date
     impact: str | None = None
     level: str | None = None
+    popularity: int | None = None
+    description_ko: str | None = None
+    level_category: str | None = None
 
     class Config:
         from_attributes = True
