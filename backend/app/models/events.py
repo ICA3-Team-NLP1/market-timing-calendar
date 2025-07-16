@@ -12,7 +12,7 @@ class Events(BaseModel):
     """경제 이벤트/지표 모델"""
 
     __tablename__ = "events"
-    __table_args__ = (Index("idx_event_date", "date", unique=True), {"extend_existing": True})
+    __table_args__ = (Index("idx_event_date", "date"), {"extend_existing": True})
     release_id = Column(String(50), nullable=True, index=True)
     title = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)

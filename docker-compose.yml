@@ -89,6 +89,7 @@ services:
       dockerfile: background/Dockerfile
       target: celery-worker
     environment:
+      - PYTHONPATH=/app
       # Redis 연결
       - REDIS_URL=redis://redis:6379/0
       # 데이터베이스 연결

@@ -2,8 +2,11 @@ from os import path, environ
 from functools import lru_cache
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
-from app.utils.utility import load_json_file
+from dotenv import load_dotenv
 
+from backend.app.utils.utility import load_json_file
+
+load_dotenv()
 
 base_dir = path.dirname(path.dirname(path.dirname(path.abspath(__file__))))
 media_secret_dir = path.join(base_dir, "secrets")

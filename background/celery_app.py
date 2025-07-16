@@ -6,10 +6,10 @@ import logging
 from celery import Celery
 
 # 환경 변수 설정
-import sys
-sys.path.insert(0, '/app')
-sys.path.insert(0, '/app/backend')
-sys.path.insert(0, '/app/background')
+# import sys
+# sys.path.insert(0, '/app')
+# sys.path.insert(0, '/app/backend')
+# sys.path.insert(0, '/app/background')
 
 from backend.app.core.config import settings
 from backend.app.core.database import db
@@ -24,8 +24,8 @@ logger = logging.getLogger(__name__)
 # DB 초기화
 db.init_db(settings.DB_INFO)
 
-# 모델 import는 DB 초기화 후에 수행
-from backend.app.models import Events
+# 모델 import는 DB 초기화 후에 수행. models 패키지를 import하여 모든 모델을 등록
+import backend.app.models
 from sqlalchemy.orm import configure_mappers
 
 # SQLAlchemy mapper 명시적 구성
