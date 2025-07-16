@@ -1,11 +1,131 @@
+from typing import Dict, Tuple
+from sqlalchemy.orm import Session
+
 from app.crud.base import CRUDBase
 from app.models.users import Users, UserEventSubscription
 from app.schemas.users import UsersCreate
+from app.constants import UserLevel
+from app.core.config import LevelConfig
 
 
 class CRUDUsers(CRUDBase[Users, UsersCreate, None]):
     """사용자 CRUD 클래스"""
-    ...
+    def update_user_exp(self, db: Session, user: Users, event_type: str) -> Tuple[Users, bool]:
+        """
+        사용자 경험치를 업데이트하고 레벨업 여부를 확인합니다.
+        
+        Args:
+            db: 데이터베이스 세션
+            user: 사용자 객체
+            event_type: 경험치 필드명 (JSON 설정에서 정의된 것)
+        
+        Returns:
+            Tuple[Users, bool]: (업데이트된 사용자, 레벨업 여부)
+        """
+        # 이미 최고 레벨이면 바로 반환
+        if user.level == UserLevel.ADVANCED:
+            return user, False
+            
+        # 유효한 이벤트 타입인지 확인
+        if not LevelConfig.is_valid_exp_field(event_type):
+            raise ValueError(f"유효하지 않은 이벤트 타입: {event_type}")
+            
+        # 현재 exp 가져오기 (기본값 설정)
+        current_exp = user.exp or LevelConfig.get_default_exp()
+        
+        # 이벤트 타입에 따라 카운트 증가 (단순 증가)
+        if event_type in current_exp:
+            current_exp[event_type] += 1
+        else:
+            # 새로운 필드인 경우 1로 초기화
+            current_exp[event_type] = 1
+            
+        # 레벨업 조건 체크
+        level_up = False
+        new_level = user.level
+        
+        level_up_config = LevelConfig.get_level_up_condition(user.level)
+        if level_up_config:
+            conditions = level_up_config.get("conditions", {})
+            target_level_str = level_up_config.get("target_level")
+            
+            # 문자열을 UserLevel enum으로 변환
+            target_level = UserLevel(target_level_str) if target_level_str else None
+            
+            # 모든 조건을 충족했는지 확인
+            if self._check_level_up_conditions(current_exp, conditions):
+                new_level = target_level
+                level_up = True
+                # 레벨업 시 카운트 초기화
+                current_exp = LevelConfig.get_default_exp()
+        
+        # 사용자 정보 업데이트
+        user.exp = current_exp
+        user.level = new_level
+        
+        db.commit()
+        db.refresh(user)
+        
+        return user, level_up
+    
+    def _check_level_up_conditions(self, current_exp: Dict[str, int], conditions: Dict[str, int]) -> bool:
+        """
+        레벨업 조건을 모두 충족했는지 확인
+        
+        Args:
+            current_exp: 현재 경험치
+            conditions: 레벨업 조건
+            
+        Returns:
+            모든 조건 충족 여부
+        """
+        for field_name, required_value in conditions.items():
+            if current_exp.get(field_name, 0) < required_value:
+                return False
+        return True
+    
+    def get_user_level_info(self, user: Users) -> Dict:
+        """
+        사용자의 상세 레벨 정보를 반환
+        
+        Args:
+            user: 사용자 객체
+            
+        Returns:
+            사용자 레벨 정보 딕셔너리
+        """
+        current_exp = user.exp or LevelConfig.get_default_exp()
+        
+        level_up_config = LevelConfig.get_level_up_condition(user.level)
+        next_level_conditions = level_up_config.get("conditions", {}) if level_up_config else {}
+        target_level_str = level_up_config.get("target_level") if level_up_config else None
+        next_level = UserLevel(target_level_str) if target_level_str else None
+        
+        # 레벨업 가능 여부 확인
+        can_level_up = (
+            level_up_config and 
+            self._check_level_up_conditions(current_exp, next_level_conditions)
+        )
+        
+        level_names = LevelConfig.get_level_names()
+        exp_fields = LevelConfig.get_exp_fields()
+        
+        return {
+            "current_level": user.level,
+            "level_display_name": level_names.get(user.level.value, str(user.level)),
+            "exp": current_exp,
+            "next_level": next_level,
+            "next_level_conditions": next_level_conditions,
+            "can_level_up": can_level_up,
+            "exp_field_info": {
+                field_name: {
+                    "display_name": exp_fields.get(field_name, field_name),
+                    "current_value": current_exp.get(field_name, 0),
+                    "required_for_next_level": next_level_conditions.get(field_name)
+                }
+                for field_name in LevelConfig.get_exp_field_names()
+            }
+        }
 
 
 class CRUDUserEventSubscription(CRUDBase[UserEventSubscription, None, None]):

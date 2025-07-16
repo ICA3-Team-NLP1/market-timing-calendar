@@ -1,0 +1,31 @@
+{
+  "exp_fields": {
+    "service_visits": "서비스 방문",
+    "chatbot_conversations": "챗봇 대화",
+    "calendar_views": "일정 조회"
+  },
+  "level_up_conditions": {
+    "BEGINNER": {
+      "target_level": "INTERMEDIATE",
+      "conditions": {
+        "service_visits": 10,
+        "chatbot_conversations": 8,
+        "calendar_views": 15
+      }
+    },
+    "INTERMEDIATE": {
+      "target_level": "ADVANCED",
+      "conditions": {
+        "service_visits": 30,
+        "chatbot_conversations": 20,
+        "calendar_views": 40
+      }
+    }
+  },
+  "level_names": {
+    "BEGINNER": "주린이",
+    "INTERMEDIATE": "관심러",
+    "ADVANCED": "실전러",
+    "UNCATEGORIZED": "미분류"
+  }
+} 
