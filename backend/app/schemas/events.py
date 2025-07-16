@@ -5,7 +5,9 @@ from pydantic import BaseModel
 class EventResponse(BaseModel):
     """이벤트 응답"""
 
-    title: str
+    id: int
+    release_id: str | None = None
+    title: str | None = None
     description: str | None = None
     date: date
     impact: str | None = None

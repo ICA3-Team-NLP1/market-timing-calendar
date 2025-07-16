@@ -12,9 +12,9 @@ from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.output_parsers import StrOutputParser
 
 # core 모듈의 공통 LLM 로직 사용
-from backend.app.core.llm import LLMFactory, BaseLLMProvider, LangfuseManager
-from backend.app.constants import UserLevel, ImpactLevel
-from background.prompts.etl_prompts import impact_prompt, level_prompt, description_ko_prompt
+from app.core.llm import LLMFactory, BaseLLMProvider, LangfuseManager
+from app.constants import UserLevel, ImpactLevel
+from ..prompts.etl_prompts import impact_prompt, level_prompt, description_ko_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -82,10 +82,10 @@ class LevelInferenceStrategy(BaseInferenceStrategy):
         return UserLevel.ADVANCED.value
 
     def process_result(self, result: str) -> str:
-        result = result.strip().upper()
-        if result in self.get_valid_values():
-            return result
-        return self.get_default_value()
+        # NOTE: level_prompt가 JSON을 반환하므로, 후처리는 여기서 하지 않고
+        # 이 메서드를 호출하는 쪽(EventMapper)에서 직접 처리합니다.
+        # 따라서 여기서는 받은 결과를 그대로 반환합니다.
+        return result
 
 
 class DescriptionKoInferenceStrategy(BaseInferenceStrategy):
@@ -223,4 +223,4 @@ class LLMServiceFactory:
             base_delay=float(os.getenv('LLM_API_DELAY', '0.5'))
         )
 
-        return LLMInferenceService(provider, retry_config)
+        return LLMInferenceService(provider, retry_config) 
