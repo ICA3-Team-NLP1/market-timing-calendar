@@ -1,8 +1,8 @@
 from sqlalchemy import Column, String, Enum, Integer, ForeignKey, Index, TIMESTAMP, func, TEXT
 from sqlalchemy.orm import relationship
 
-from app.models.base import BaseModel
-from app.constants import UserLevel
+from .base import BaseModel
+from ..constants import UserLevel
 
 
 class Users(BaseModel):
