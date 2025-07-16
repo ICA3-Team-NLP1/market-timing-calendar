@@ -7,7 +7,7 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass
 
 import requests
-from backend.app.core.config import settings
+from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ class FredApiConfig:
     api_key: str
     base_url: str = 'https://api.stlouisfed.org/fred'
     file_type: str = 'json'
-    
+
     @classmethod
     def from_settings(cls) -> 'FredApiConfig':
         """설정에서 생성"""
@@ -30,7 +30,7 @@ class DateRange:
     """날짜 범위 클래스 (Value Object Pattern)"""
     start_date: str
     end_date: str
-    
+
     @classmethod
     def create_around_today(cls, days_before: int = 30, days_after: int = 30) -> 'DateRange':
         """오늘 기준으로 날짜 범위 생성"""
@@ -42,7 +42,7 @@ class DateRange:
 
 @dataclass
 class ReleaseInfo:
-    """Release 정보 클래스 (Data Transfer Object)"""
+    """단일 경제 지표 발표 정보 DTO"""
     release_id: str
     date: str
     name: Optional[str] = None
@@ -54,10 +54,10 @@ class ReleaseInfo:
 
 class FredApiClient:
     """FRED API 클라이언트 (Single Responsibility)"""
-    
+
     def __init__(self, config: FredApiConfig):
         self.config = config
-    
+
     def get_release_dates(self, date_range: DateRange) -> Dict[str, Any]:
         """Release dates API 호출"""
         url = f'{self.config.base_url}/releases/dates'
@@ -67,13 +67,13 @@ class FredApiClient:
             'realtime_start': date_range.start_date,
             'realtime_end': date_range.end_date,
         }
-        
+
         logger.info(f"FRED API 호출 범위: {date_range.start_date} ~ {date_range.end_date}")
         
         response = requests.get(url, params=params)
         response.raise_for_status()
         return response.json()
-    
+
     def get_release_metadata(self, release_id: str) -> Dict[str, Any]:
         """Release 메타데이터 조회"""
         url = f'{self.config.base_url}/release'
@@ -82,7 +82,7 @@ class FredApiClient:
             'api_key': self.config.api_key,
             'file_type': self.config.file_type
         }
-        
+
         try:
             response = requests.get(url, params=params)
             response.raise_for_status()
@@ -90,7 +90,7 @@ class FredApiClient:
         except Exception as e:
             logger.warning(f"release_id={release_id} 메타데이터 조회 실패: {e}")
             return {}
-    
+
     def get_representative_series_info(self, release_id: str) -> Dict[str, Any]:
         """대표 시리즈 정보 조회"""
         url = f'{self.config.base_url}/release/series'
@@ -99,12 +99,12 @@ class FredApiClient:
             'api_key': self.config.api_key,
             'file_type': self.config.file_type
         }
-        
+
         try:
             response = requests.get(url, params=params)
             response.raise_for_status()
             series_list = response.json().get('seriess', [])
-            
+
             # popularity 기준으로 정렬 후 가장 인기 있는 시리즈 반환
             if series_list:
                 preferred = sorted(series_list, key=lambda x: x.get('popularity', 0), reverse=True)
@@ -117,23 +117,23 @@ class FredApiClient:
 
 class FredDataProcessor:
     """FRED 데이터 처리기 (Single Responsibility)"""
-    
+
     def __init__(self, api_client: FredApiClient):
         self.api_client = api_client
-    
+
     def process_release_dates(self, raw_data: Dict[str, Any]) -> List[ReleaseInfo]:
         """Release dates 데이터 처리"""
         release_dates = raw_data.get('release_dates', [])
         results = []
-        
+
         for item in release_dates:
             release_id = str(item.get('release_id'))
             date = item.get('date')
-            
+
             # 메타데이터 및 시리즈 정보 수집
             release_metadata = self.api_client.get_release_metadata(release_id)
             series_info = self.api_client.get_representative_series_info(release_id)
-            
+
             release_info = ReleaseInfo(
                 release_id=release_id,
                 date=date,
@@ -143,35 +143,35 @@ class FredDataProcessor:
                 source=series_info.get("source"),
                 popularity=series_info.get("popularity")
             )
-            
+
             results.append(release_info)
-        
+
         return results
 
 
 class FredService:
     """FRED 서비스 (Facade Pattern)"""
-    
+
     def __init__(self, config: Optional[FredApiConfig] = None):
         self.config = config or FredApiConfig.from_settings()
         self.api_client = FredApiClient(self.config)
         self.data_processor = FredDataProcessor(self.api_client)
-    
+
     def fetch_recent_releases(self, days_before: int = 30, days_after: int = 30) -> List[ReleaseInfo]:
         """최근 Release 정보 수집"""
         try:
             # 날짜 범위 생성
             date_range = DateRange.create_around_today(days_before, days_after)
-            
+
             # API 호출
             raw_data = self.api_client.get_release_dates(date_range)
             logger.info(f"API 응답 받음. release_dates 개수: {len(raw_data.get('release_dates', []))}")
-            
+
             # 데이터 처리
             release_infos = self.data_processor.process_release_dates(raw_data)
-            
+
             return release_infos
-            
+
         except Exception as e:
             logger.error(f"FRED releases/dates API 호출 실패: {e}")
             raise 

@@ -35,7 +35,7 @@ services:
 
       # 앱 설정
       - NODE_ENV=development
-      - DEBUG=true
+      - PYTHONPATH=/app/backend
 
       # 프론트 Firebase 설정
       - VITE_FIREBASE_API_KEY=${VITE_FIREBASE_API_KEY:-AIzaSyCaYBhQEGujz-oj-j2mvaSNHFlVnzrGztA}
@@ -110,8 +110,7 @@ services:
       - LANGFUSE_PUBLIC_KEY=${LANGFUSE_PUBLIC_KEY:-}
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
       - LANGFUSE_HOST=${LANGFUSE_HOST:-https://cloud.langfuse.com}
-      # 앱 설정
-      - DEBUG=true
+      - PYTHONPATH=/app/backend
     depends_on:
       redis:
         condition: service_healthy

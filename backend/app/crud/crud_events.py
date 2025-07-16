@@ -1,6 +1,6 @@
-from sqlalchemy.orm import Session
 from datetime import date
-
+from typing import List
+from sqlalchemy.orm import Session
 from app.crud.base import CRUDBase
 from app.models.events import Events
 from app.models.users import UserEventSubscription
@@ -65,6 +65,8 @@ class CRUDEvents(CRUDBase[Events, EventCreate, None]):
         events = []
         for event in result:
             event_response = EventResponse(
+                id=event.id,
+                release_id=event.release_id,
                 title=event.title,
                 description=event.description,
                 date=event.date,
@@ -119,6 +121,8 @@ class CRUDEvents(CRUDBase[Events, EventCreate, None]):
         events = []
         for event in result:
             event_response = EventResponse(
+                id=event.id,
+                release_id=event.release_id,
                 title=event.title,
                 description=event.description,
                 date=event.date,
