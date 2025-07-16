@@ -62,9 +62,8 @@ RUN echo '{"status": "healthy"}' > ./static/health.json
 # 개발용 포트
 EXPOSE 8000
 
-# 개발 환경 시작 스크립트
-# CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:create_app --host 0.0.0.0 --port 8000 --reload"]
-CMD ["sh", "-c", "uvicorn app.main:create_app --host 0.0.0.0 --port 8000 --reload"]
+# 개발 환경 시작 스크립트 (초기화 포함)
+CMD ["python", "startup.py"]
 
 # ===== Stage 4: 프로덕션 환경 =====
 FROM python:3.11-slim AS production
@@ -94,6 +93,5 @@ USER appuser
 
 EXPOSE 8000
 
-# 프로덕션 시작
-# CMD ["sh", "-c", "alembic upgrade head && uvicorn app.main:create_app --host 0.0.0.0 --port 8000 --workers 4"]
-CMD ["sh", "-c", "uvicorn app.main:create_app --host 0.0.0.0 --port 8000 --workers 4"]
+# 프로덕션 시작 (초기화 포함)
+CMD ["python", "startup.py"]

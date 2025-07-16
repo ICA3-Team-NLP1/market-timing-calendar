@@ -1,9 +1,9 @@
-from sqlalchemy import Column, String, Enum, Integer, ForeignKey, Index, TIMESTAMP, func, TEXT
+from sqlalchemy import Column, String, Enum, Integer, ForeignKey, Index, TIMESTAMP, func, TEXT, JSON
 from sqlalchemy.orm import relationship
 
 from .base import BaseModel
 from ..constants import UserLevel
-
+from ..core.config import LevelConfig
 
 class Users(BaseModel):
     __tablename__ = "users"
@@ -16,7 +16,7 @@ class Users(BaseModel):
         Enum(UserLevel, native_enum=False, validate_strings=True), nullable=False, default=UserLevel.BEGINNER
     )
     investment_profile = Column(String(255), nullable=True)
-    exp = Column(Integer, nullable=False, default=0)
+    exp = Column(JSON, nullable=False, default=LevelConfig.get_default_exp, comment="레벨업을 위한 경험치 정보")
 
     user_subscriptions = relationship(
         "UserEventSubscription", back_populates="user", cascade="all, delete-orphan", passive_deletes=True

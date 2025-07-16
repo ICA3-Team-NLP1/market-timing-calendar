@@ -1,10 +1,12 @@
-from os import path, environ
+from dotenv import load_dotenv
 from functools import lru_cache
+from os import path, environ
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
-from dotenv import load_dotenv
+from typing import Dict, List
 
 from backend.app.utils.utility import load_json_file
+from backend.app.constants import UserLevel
 
 load_dotenv()
 
@@ -19,6 +21,62 @@ class DBConnection(BaseModel):
     SQLALCHEMY_ECHO: bool = False
     POOL_SIZE: int = 10
     MAX_OVERFLOW: int = 30
+
+
+class LevelConfig:
+    """레벨업 관련 설정 - JSON 파일 기반"""
+    
+    _config_cache = None
+    
+    @classmethod
+    def _load_config(cls) -> Dict:
+        """JSON 파일에서 레벨 설정을 로드합니다."""
+        if cls._config_cache is None:
+            config_path = path.join(path.dirname(__file__), "level_config.json")
+            cls._config_cache = load_json_file(config_path)
+        return cls._config_cache
+    
+    @classmethod
+    def get_exp_fields(cls) -> Dict[str, str]:
+        """경험치 필드 딕셔너리 반환"""
+        config = cls._load_config()
+        return config.get("exp_fields", {})
+    
+    @classmethod
+    def get_level_up_conditions(cls) -> Dict:
+        """레벨업 조건 딕셔너리 반환"""
+        config = cls._load_config()
+        return config.get("level_up_conditions", {})
+    
+    @classmethod
+    def get_level_names(cls) -> Dict[str, str]:
+        """레벨별 한국어 이름 딕셔너리 반환"""
+        config = cls._load_config()
+        return config.get("level_names", {})
+    
+    @classmethod
+    def get_default_exp(cls) -> Dict[str, int]:
+        """기본 경험치 딕셔너리 반환"""
+        exp_fields = cls.get_exp_fields()
+        return {field: 0 for field in exp_fields.keys()}
+    
+    @classmethod
+    def get_exp_field_names(cls) -> List[str]:
+        """경험치 필드명 리스트 반환"""
+        exp_fields = cls.get_exp_fields()
+        return list(exp_fields.keys())
+    
+    @classmethod
+    def is_valid_exp_field(cls, field_name: str) -> bool:
+        """유효한 경험치 필드인지 확인"""
+        exp_fields = cls.get_exp_fields()
+        return field_name in exp_fields
+    
+    @classmethod
+    def get_level_up_condition(cls, current_level: UserLevel) -> Dict:
+        """현재 레벨의 레벨업 조건 반환"""
+        conditions = cls.get_level_up_conditions()
+        return conditions.get(current_level.value, {})
 
 
 class Settings(BaseSettings):
