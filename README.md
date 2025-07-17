@@ -280,6 +280,205 @@ sudo docker-compose up -d
 
 ---
 
+## 🛡️ 컨텐츠 필터링 시스템
+
+### 개요
+
+본 프로젝트는 **LangGraph 기반의 고도화된 컨텐츠 필터링 시스템**을 통해 금융 법적 가이드라인을 준수하고 사용자에게 안전한 정보를 제공합니다.
+
+### 🏗️ 아키텍처
+
+```
+사용자 요청 → 챗봇 API → LLM 응답 생성 → 필터링 시스템 → 안전한 응답 반환
+                                    ↓
+                          [LangGraph Workflow]
+                          1. 컨텐츠 분석
+                          2. 안전성 평가  
+                          3. 필터링 적용
+                          4. 대체 컨텐츠 생성
+                          5. 재검토 및 승인
+```
+
+### 🔧 핵심 기능
+
+#### 1. **다단계 필터링 Workflow**
+- **분석**: LLM을 통한 컨텐츠 위험도 분석
+- **필터링**: 안전도 점수 기반 자동 필터링
+- **대체**: 위험한 컨텐츠의 안전한 대체 텍스트 생성
+- **재검토**: 대체된 컨텐츠의 최종 안전성 검증
+
+#### 2. **법적 가이드라인 준수**
+- 투자 권유 표현 탐지 및 차단
+- 과도한 수익 보장 표현 필터링
+- 리스크 경고 누락 감지
+- 미확인 정보 제공 방지
+- 법적 면책 조항 자동 추가
+
+#### 3. **안전 수준별 설정**
+- **Strict**: 금융기관 수준의 엄격한 필터링 (임계값: 0.85)
+- **Moderate**: 일반적인 수준의 필터링 (임계값: 0.70)  
+- **Permissive**: 최소한의 필터링 (임계값: 0.55)
+
+### 📊 모니터링 및 로깅
+
+#### 실시간 메트릭
+```bash
+# 필터링 상태 조회
+curl -X GET "http://localhost:8000/api/v1/chatbot/filter/status" \
+  -H "Authorization: Bearer your-token"
+```
+
+#### 로깅 정보
+- 📈 **성능 메트릭**: 처리 시간, 처리량, 성공률
+- 🔍 **필터링 결과**: 안전도 점수, 위험 카테고리, 필터링 이유
+- ⚠️ **위험 탐지**: 투자 권유, 수익 보장, 시장 조작 우려 등
+- 📊 **사용자 패턴**: 사용자별 필터링 빈도 및 패턴
+
+### 🚀 API 사용법
+
+#### 1. **기본 대화 (필터링 적용)**
+```bash
+curl -X POST "http://localhost:8000/api/v1/chatbot/conversation?use_filter=true" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-token" \
+  -d '{
+    "history": [],
+    "question": "투자에 대해 알려주세요",
+    "safety_level": "strict"
+  }'
+```
+
+#### 2. **필터링 없는 대화**
+```bash
+curl -X POST "http://localhost:8000/api/v1/chatbot/conversation?use_filter=false" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-token" \
+  -d '{
+    "history": [],
+    "question": "경제 상황을 알려주세요"
+  }'
+```
+
+#### 3. **상세 필터링 정보와 함께 대화**
+```bash
+curl -X POST "http://localhost:8000/api/v1/chatbot/conversation?use_filter=true" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-token" \
+  -d '{
+    "history": [],
+    "question": "이 주식을 사야 할까요?",
+    "safety_level": "moderate"
+  }'
+```
+
+**응답 예시**:
+```json
+{
+  "content": "투자에 대한 참고 정보를 제공해드립니다...",
+  "filter_result": {
+    "filtered": true,
+    "safety_score": 0.65,
+    "filter_reason": "투자 권유 표현이 포함되어 수정했습니다",
+    "risk_categories": ["investment_advice"],
+    "processing_time": 1.2,
+    "retry_count": 1
+  }
+}
+```
+
+#### 4. **컨텐츠 안전성 검사**
+```bash
+curl -X POST "http://localhost:8000/api/v1/chatbot/safety/check" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer your-token" \
+  -d '{
+    "content": "이 주식을 지금 사세요! 100% 수익 보장!"
+  }'
+```
+
+### ⚙️ 환경변수 설정
+
+```bash
+# 필터링 기본 설정
+FILTER_ENABLED=true
+FILTER_SAFETY_LEVEL=strict
+FILTER_MAX_RETRIES=3
+
+# 필터링 전용 LLM 설정
+FILTER_LLM_PROVIDER=openai
+FILTER_LLM_MODEL=gpt-4
+```
+
+### 🧪 테스트 실행
+
+#### 필터링 시스템 테스트
+```bash
+# 컨텐츠 필터 테스트
+docker-compose exec app python -m pytest backend/tests/services/test_content_filter.py -v
+
+# API 통합 테스트
+docker-compose exec app python -m pytest backend/tests/api/test_chatbot_with_filter.py -v
+
+# 성능 테스트
+docker-compose exec app python -m pytest backend/tests/performance/test_filter_performance.py -v
+```
+
+### 🔍 위험 카테고리
+
+| 카테고리 | 설명 | 예시 |
+|---------|------|------|
+| `investment_advice` | 투자 권유 | "사세요", "팔아야 합니다" |
+| `guaranteed_profit` | 수익 보장 | "확실한 수익", "100% 상승" |
+| `missing_risk_warning` | 리스크 경고 누락 | 위험성 언급 없는 투자 조언 |
+| `unverified_information` | 미확인 정보 | 출처 불분명한 시장 정보 |
+| `market_manipulation` | 시장 조작 우려 | 내부자 정보, 조작 의혹 |
+| `excessive_confidence` | 과도한 확신 | "무조건", "반드시" 등 |
+
+### 📈 성능 최적화
+
+#### 1. **병렬 처리**
+- 동시 요청 처리 지원
+- 비동기 LLM 호출로 처리량 향상
+
+#### 2. **캐싱 전략**
+- 유사한 컨텐츠에 대한 필터링 결과 캐싱 (추후 구현 예정)
+- LLM 응답 캐싱으로 반복 요청 최적화
+
+#### 3. **모니터링**
+- 실시간 성능 메트릭 수집
+- Langfuse를 통한 LLM 호출 추적
+- 사용자별 필터링 패턴 분석
+
+### 🚨 알려진 제한사항
+
+1. **처리 지연**: 복잡한 컨텐츠의 경우 3-5초 소요 가능
+2. **언어 제한**: 현재 한국어에 최적화됨
+3. **컨텍스트 길이**: 매우 긴 텍스트의 경우 청킹 필요
+4. **비용**: LLM API 호출로 인한 추가 비용 발생
+
+### 🛠️ 커스터마이징
+
+#### 필터링 프롬프트 수정
+```python
+# backend/app/core/filter_prompts.py
+SAFETY_ANALYSIS_PROMPT = """
+당신은 금융 조언 컨텐츠의 안전성을 평가하는 전문가입니다.
+... 사용자 정의 프롬프트 ...
+"""
+```
+
+#### 안전 임계값 조정
+```python
+# backend/app/core/filter_prompts.py
+SAFETY_THRESHOLDS = {
+    "strict": 0.90,    # 더 엄격하게
+    "moderate": 0.75,  # 기본값 조정
+    "permissive": 0.60 # 더 관대하게
+}
+```
+
+---
+
 ## 📝 라이선스
 
 Apache 2.0 License

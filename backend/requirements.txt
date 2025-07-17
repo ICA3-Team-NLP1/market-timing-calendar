@@ -27,4 +27,5 @@ langchain
 langchain-core
 langchain-openai
 langchain-anthropic
+langgraph>=0.0.40
 langfuse>=2.0.0
