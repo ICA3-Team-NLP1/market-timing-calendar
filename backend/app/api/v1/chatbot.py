@@ -4,7 +4,6 @@ from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_or_create_user, get_session
@@ -13,34 +12,11 @@ from app.utils.llm_client import LLMClient
 from app.core.prompts import SYSTEM_PROMPTS, EVENT_EXPLAIN_PROMPTS
 from app.constants import UserLevel
 from app.crud.crud_events import crud_events
+from app.schemas.chatbot import *
+from app.services.filter_service import FilterService
 
 
 chatbot_router = APIRouter()
-
-
-class ChatMessage(BaseModel):
-    """채팅 메시지 모델"""
-    role: str  # "user" 또는 "assistant"
-    content: str  # 메시지 내용
-
-
-class ConversationRequest(BaseModel):
-    """사용자 대화내역 기반 질문 요청
-    
-    사용자가 챗봇과 이전에 나눈 대화 내역을 바탕으로 
-    연속적인 질문을 할 때 사용하는 요청 모델
-    """
-    history: List[ChatMessage] = []  # 이전 대화 내역
-    question: str  # 사용자의 새로운 질문
-
-
-class EventExplainRequest(BaseModel):
-    """특정 이벤트(금융일정)에 대한 설명 요청
-    
-    특정 금융 이벤트나 경제 지표에 대한 설명을 요청할 때 사용하는 모델
-    대화 내역 없이 단발성 질문으로 사용됨
-    """
-    release_id: str  # Events 테이블의 release_id (예: CPILFESL, UNRATE 등)
 
 
 def _build_messages(level: UserLevel, history: List[ChatMessage], question: str) -> List[dict]:
