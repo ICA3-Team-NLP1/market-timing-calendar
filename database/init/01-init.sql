@@ -10,7 +10,7 @@ CREATE TABLE users (
     name VARCHAR(100) NOT NULL,
     level VARCHAR(20) NOT NULL, -- 초급/중급/고급
     investment_profile VARCHAR(255),
-    exp INTEGER DEFAULT 0
+    exp JSONB DEFAULT '{}'::jsonb
 );
 
 -- 레벨별 제공 기능 테이블

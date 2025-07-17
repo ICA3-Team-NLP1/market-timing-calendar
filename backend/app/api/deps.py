@@ -14,8 +14,10 @@ async def get_session(request: Request):
     request.state.db_session = db_session
     try:
         yield db_session
-    finally:
+    except Exception as e:
         db_session.rollback()
+        raise e
+    finally:
         db_session.close()
 
 

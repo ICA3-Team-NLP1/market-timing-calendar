@@ -3,10 +3,12 @@
 """
 import pytest
 from fastapi.testclient import TestClient
-from app.main import app
+from app.main import create_app
 from app.core.config import LevelConfig
+from app.constants import UserLevel
 
 
+app = create_app()
 client = TestClient(app)
 
 
@@ -70,8 +72,8 @@ class TestLevelUpdate:
     def test_config_based_level_up_scenario(self):
         """설정 기반 레벨업 시나리오 테스트"""
         # 현재 설정에서 정의된 레벨업 조건으로 테스트
-        beginner_conditions = LevelConfig.LEVEL_UP_CONDITIONS.get(
-            LevelConfig.UserLevel.BEGINNER, {}
+        beginner_conditions = LevelConfig.get_level_up_conditions().get(
+            UserLevel.BEGINNER.value, {}
         ).get("conditions", {})
         
         if beginner_conditions:
@@ -120,7 +122,7 @@ class TestLevelConfigValidation:
         # EXP_FIELDS와 LEVEL_UP_CONDITIONS가 일치하는지 확인
         exp_fields = set(LevelConfig.get_exp_field_names())
         
-        for level, config in LevelConfig.LEVEL_UP_CONDITIONS.items():
+        for level, config in LevelConfig.get_level_up_conditions().items():
             condition_fields = set(config.get("conditions", {}).keys())
             
             # 레벨업 조건에 사용된 필드들이 모두 EXP_FIELDS에 정의되어 있는지 확인
@@ -130,14 +132,15 @@ class TestLevelConfigValidation:
     def test_level_progression_validity(self):
         """레벨 진행 유효성 검증"""
         # 레벨 진행이 순차적이고 유효한지 확인
-        levels = [LevelConfig.UserLevel.BEGINNER, LevelConfig.UserLevel.INTERMEDIATE, LevelConfig.UserLevel.ADVANCED]
+        levels = [UserLevel.BEGINNER, UserLevel.INTERMEDIATE, UserLevel.ADVANCED]
         
         for i, level in enumerate(levels[:-1]):
-            config = LevelConfig.LEVEL_UP_CONDITIONS.get(level)
+            config = LevelConfig.get_level_up_conditions().get(level.value)
             if config:
-                target_level = config.get("target_level")
+                target_level_str = config.get("target_level")
+                target_level = UserLevel(target_level_str) if target_level_str else None
                 expected_next_level = levels[i + 1]
-                assert target_level == expected_next_level, f"레벨 {level}의 다음 레벨이 올바르지 않습니다"
+                assert target_level == expected_next_level, f"레벨 {level.value}의 다음 레벨이 올바르지 않습니다"
 
 
 if __name__ == "__main__":
