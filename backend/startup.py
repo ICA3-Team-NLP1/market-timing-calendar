@@ -131,9 +131,20 @@ async def initialize():
         sys.exit(1)
     
     # 3. 마이그레이션 실행
-    if not await run_migrations():
-        print("❌ 초기화 실패: 마이그레이션 오류")
+    # 기존 run_migrations() 대신 shell 명령어로 alembic upgrade head 실행
+    print("🔄 Alembic 마이그레이션 실행 중...")
+    result = subprocess.run(
+        [sys.executable, "-m", "alembic", "upgrade", "head"],
+        cwd=Path(__file__).parent,
+        capture_output=True,
+        text=True
+    )
+    if result.returncode != 0:
+        # stderr와 stdout을 모두 출력하도록 수정
+        error_message = result.stderr or result.stdout
+        print(f"❌ Alembic 마이그레이션 실패: {error_message}")
         sys.exit(1)
+    print("✅ Alembic 마이그레이션 완료")
     
     # 4. 설정 검증
     if not validate_level_config():

@@ -5,8 +5,8 @@ from pydantic import BaseModel
 from pydantic_settings import BaseSettings
 from typing import Dict, List
 
-from backend.app.utils.utility import load_json_file
-from backend.app.constants import UserLevel
+from ..utils.utility import load_json_file
+from ..constants import UserLevel
 
 load_dotenv()
 

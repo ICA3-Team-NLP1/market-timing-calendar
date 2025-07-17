@@ -10,7 +10,7 @@ from typing import Any, Optional
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 
-from backend.app.core.config import settings
+from .config import settings
 
 # Langfuse 임포트 (선택적)
 try:

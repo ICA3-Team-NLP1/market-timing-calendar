@@ -22,50 +22,60 @@ class CRUDUsers(CRUDBase[Users, UsersCreate, None]):
         Returns:
             Tuple[Users, bool]: (업데이트된 사용자, 레벨업 여부)
         """
+        # DB에서 user 다시 조회
+        user = db.query(Users).filter(Users.id == user.id).first()
+        if not user:
+            raise ValueError(f"사용자 ID {user.id}를 찾을 수 없습니다.")
+
         # 이미 최고 레벨이면 바로 반환
         if user.level == UserLevel.ADVANCED:
             return user, False
-            
+
         # 유효한 이벤트 타입인지 확인
         if not LevelConfig.is_valid_exp_field(event_type):
             raise ValueError(f"유효하지 않은 이벤트 타입: {event_type}")
-            
+
         # 현재 exp 가져오기 (기본값 설정)
         current_exp = user.exp or LevelConfig.get_default_exp()
-        
+
         # 이벤트 타입에 따라 카운트 증가 (단순 증가)
         if event_type in current_exp:
             current_exp[event_type] += 1
         else:
             # 새로운 필드인 경우 1로 초기화
             current_exp[event_type] = 1
-            
+
         # 레벨업 조건 체크
         level_up = False
         new_level = user.level
-        
+
         level_up_config = LevelConfig.get_level_up_condition(user.level)
         if level_up_config:
             conditions = level_up_config.get("conditions", {})
             target_level_str = level_up_config.get("target_level")
-            
+
             # 문자열을 UserLevel enum으로 변환
             target_level = UserLevel(target_level_str) if target_level_str else None
-            
+
             # 모든 조건을 충족했는지 확인
             if self._check_level_up_conditions(current_exp, conditions):
                 new_level = target_level
                 level_up = True
                 # 레벨업 시 카운트 초기화
                 current_exp = LevelConfig.get_default_exp()
-        
+
         # 사용자 정보 업데이트
         user.exp = current_exp
         user.level = new_level
-        
-        db.commit()
+
+        try:
+            db.commit()
+        except Exception as e:
+            db.rollback()
+            logger.error(f"경험치 커밋 중 오류 발생: {e}")
+            raise
+
         db.refresh(user)
-        
         return user, level_up
     
     def _check_level_up_conditions(self, current_exp: Dict[str, int], conditions: Dict[str, int]) -> bool:
