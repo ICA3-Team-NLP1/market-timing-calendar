@@ -54,7 +54,14 @@ class Settings(BaseSettings):
     ACTIVE_LLM_MODEL: str = "gpt-4-turbo"
     OPENAI_API_KEY: str = ""
     ANTHROPIC_API_KEY: str = ""  # Claude API 키
-    
+
+    # 컨텐츠 필터링 설정
+    FILTER_ENABLED: bool = True
+    FILTER_SAFETY_LEVEL: str = "strict"  # strict, moderate, permissive
+    FILTER_MAX_RETRIES: int = 3
+    FILTER_LLM_PROVIDER: str = ""  # 필터링 전용 LLM (빈 문자열이면 기본 LLM 사용)
+    FILTER_LLM_MODEL: str = "gpt-4"  # 필터링용 모델 (정확성을 위해 고성능 모델 사용)
+
     # Langfuse 설정
     LANGFUSE_PUBLIC_KEY: str = ""
     LANGFUSE_SECRET_KEY: str = ""

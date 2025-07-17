@@ -33,6 +33,13 @@ services:
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
       - LANGFUSE_HOST=${LANGFUSE_HOST:-https://us.cloud.langfuse.com}
 
+      # 컨텐츠 필터링 설정
+      - FILTER_ENABLED=${FILTER_ENABLED:-true}
+      - FILTER_SAFETY_LEVEL=${FILTER_SAFETY_LEVEL:-strict}
+      - FILTER_MAX_RETRIES=${FILTER_MAX_RETRIES:-3}
+      - FILTER_LLM_PROVIDER=${FILTER_LLM_PROVIDER:-}
+      - FILTER_LLM_MODEL=${FILTER_LLM_MODEL:-gpt-4}
+
       # 앱 설정
       - NODE_ENV=development
       - PYTHONPATH=/app/backend
