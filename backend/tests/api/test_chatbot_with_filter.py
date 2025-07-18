@@ -64,7 +64,7 @@ class TestChatbotWithFilter:
         # 디버그: 원본 stream_chat 메서드 호출 확인
         mock_llm_instance.stream_chat.assert_called_once()
 
-    @patch("app.crud.crud_events.crud_events.get_by_release_id")
+    @patch("app.crud.crud_events.crud_events.get_by_id")
     @patch("app.api.v1.chatbot.LLMClient")
     def test_explain_event_with_filter(
         self, mock_llm_client, mock_get_event, client, session, mock_firebase_token, auth_headers
@@ -77,6 +77,7 @@ class TestChatbotWithFilter:
 
         # Mock 이벤트 데이터 - 디버그: 실제 이벤트 객체 형태로 설정
         mock_event = {
+            "id": 1,
             "title": "소비자물가지수",
             "description": "월별 소비자물가 변동률",
             "date": "2024-01-15",
@@ -93,7 +94,7 @@ class TestChatbotWithFilter:
             ["소비자물가지수는 ", "경제의 중요한 ", "지표입니다."]
         )
 
-        request_data = {"release_id": "CPILFESL", "safety_level": "strict"}
+        request_data = {"id": 1, "safety_level": "strict"}
 
         # When: API 호출
         response = client.post("/api/v1/chatbot/event/explain?use_filter=true", json=request_data, headers=auth_headers)

@@ -86,16 +86,16 @@ async def explain_event(
     사용자 레벨에 따라 적절한 깊이의 설명을 제공하며, 컨텐츠 필터링을 적용합니다.
 
     Args:
-        req: 이벤트 설명 요청 (release_id, 안전 수준)
+        req: 이벤트 설명 요청 (Events 테이블의 id, 안전 수준)
         use_filter: 필터링 적용 여부 (기본값: True)
         db_user: 현재 사용자 정보
         db: 데이터베이스 세션
     """
     try:
-        # release_id로 이벤트 조회
-        event = crud_events.get_by_release_id(db, req.release_id)
+        # id로 이벤트 조회
+        event = crud_events.get_by_id(db, req.id)
         if not event:
-            raise HTTPException(status_code=404, detail=f"Event with release_id '{req.release_id}' not found")
+            raise HTTPException(status_code=404, detail=f"Event with id '{req.id}' not found")
 
         # 이벤트 정보를 포맷팅하여 LLM에게 전달
         event_context = f"""이벤트 정보:
