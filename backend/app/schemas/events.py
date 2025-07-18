@@ -33,3 +33,25 @@ class EventCreate(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class EventSubscriptionCreate(BaseModel):
+    """이벤트 구독 생성 (일정 저장)"""
+
+    event_id: int
+
+    class Config:
+        from_attributes = True
+
+
+class EventSubscriptionResponse(BaseModel):
+    """이벤트 구독 응답"""
+
+    id: int
+    event_id: int
+    user_id: int
+    subscribed_at: str
+    event: EventResponse | None = None
+
+    class Config:
+        from_attributes = True

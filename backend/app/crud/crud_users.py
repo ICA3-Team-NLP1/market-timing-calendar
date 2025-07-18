@@ -163,7 +163,64 @@ class CRUDUsers(CRUDBase[Users, UsersCreate, None]):
 
 class CRUDUserEventSubscription(CRUDBase[UserEventSubscription, None, None]):
     """사용자 이벤트 구독 CRUD 클래스"""
-    ...
+    
+    def create_subscription(self, session: Session, user_id: int, event_id: int) -> UserEventSubscription:
+        """
+        사용자 이벤트 구독 생성 (일정 저장)
+        
+        Args:
+            session: DB 세션
+            user_id: 사용자 ID
+            event_id: 이벤트 ID
+            
+        Returns:
+            생성된 구독 객체
+        """
+        # 이미 구독 중인지 확인
+        existing_subscription = (
+            session.query(UserEventSubscription)
+            .filter(
+                UserEventSubscription.user_id == user_id,
+                UserEventSubscription.event_id == event_id,
+                UserEventSubscription.dropped_at.is_(None)
+            )
+            .first()
+        )
+        
+        if existing_subscription:
+            return existing_subscription
+        
+        # 새 구독 생성
+        subscription = UserEventSubscription(
+            user_id=user_id,
+            event_id=event_id
+        )
+        session.add(subscription)
+        session.commit()
+        session.refresh(subscription)
+        return subscription
+    
+    def get_user_subscriptions(self, session: Session, user_id: int) -> list[UserEventSubscription]:
+        """
+        사용자의 모든 이벤트 구독 조회 (저장된 일정 조회)
+        
+        Args:
+            session: DB 세션
+            user_id: 사용자 ID
+            
+        Returns:
+            사용자의 구독 목록
+        """
+        subscriptions = (
+            session.query(UserEventSubscription)
+            .filter(
+                UserEventSubscription.user_id == user_id,
+                UserEventSubscription.dropped_at.is_(None)
+            )
+            .order_by(UserEventSubscription.subscribed_at.desc())
+            .all()
+        )
+        return subscriptions
 
 
 crud_users = CRUDUsers(Users)
