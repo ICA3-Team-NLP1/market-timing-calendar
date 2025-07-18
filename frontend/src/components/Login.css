@@ -171,19 +171,38 @@
 }
 
 .logout-btn {
-    background: #dc3545;
+    background-color: #6c757d;
     color: white;
-    padding: 12px 30px;
     border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
+    padding: 10px 20px;
+    border-radius: 5px;
     cursor: pointer;
-    transition: background 0.3s;
+    font-size: 14px;
+    transition: background-color 0.3s;
 }
 
 .logout-btn:hover {
-    background: #c82333;
+    background-color: #5a6268;
+}
+
+.delete-btn {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s;
+}
+
+.delete-btn:hover {
+    background-color: #c82333;
+}
+
+.delete-btn:disabled {
+    background-color: #ccc;
+    cursor: not-allowed;
 }
 
 /* 반응형 디자인 */
