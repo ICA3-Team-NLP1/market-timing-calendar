@@ -33,6 +33,12 @@ class LevelUpdateResponse(BaseModel):
     next_level_conditions: Optional[Dict[str, int]] = None  # 다음 레벨 조건 추가
 
 
+class DeleteUserResponse(BaseModel):
+    """사용자 탈퇴 응답"""
+    success: bool
+    message: str
+
+
 class ExpFieldInfo(BaseModel):
     """경험치 필드 정보"""
     field_name: str

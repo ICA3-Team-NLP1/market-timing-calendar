@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Request, Path
 from app.api.deps import get_or_create_user
 from app.models.users import Users
 from app.crud.crud_users import crud_users
-from app.schemas.users import LevelUpdateRequest, LevelUpdateResponse
+from app.schemas.users import LevelUpdateRequest, LevelUpdateResponse, DeleteUserResponse
 from app.constants import UserLevel
 from app.core.config import LevelConfig
 
@@ -33,6 +33,45 @@ async def get_user_by_uid(
             headers={"WWW-Authenticate": "Bearer"},
         )
     return db_user
+
+
+@user_router.delete("/me")
+async def delete_user(
+    request: Request,
+    db_user: Users = Depends(get_or_create_user),
+) -> DeleteUserResponse:
+    """
+    현재 사용자 계정을 삭제합니다.
+    
+    사용자와 관련된 모든 데이터(이벤트 구독, 구글 캘린더 연동 등)가 함께 삭제됩니다.
+    """
+    try:
+        session = request.state.db_session
+        
+        # 사용자 삭제 (관련 데이터는 cascade로 자동 삭제)
+        success = crud_users.delete_user(session, db_user)
+        
+        if success:
+            return DeleteUserResponse(
+                success=True,
+                message="계정이 성공적으로 삭제되었습니다."
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="계정 삭제 중 오류가 발생했습니다."
+            )
+            
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e)
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"계정 삭제 중 오류가 발생했습니다: {str(e)}"
+        )
 
 
 @user_router.get("/level/info")

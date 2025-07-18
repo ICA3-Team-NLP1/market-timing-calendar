@@ -48,3 +48,10 @@ export const getCurrentUser = async () => {
 export const getUserByUid = async (uid) => {
     return await apiCall(`${API_BASE_URL}/api/v1/auth/user/${uid}`);
 };
+
+// 🔧 사용자 탈퇴 API
+export const deleteUser = async () => {
+    return await apiCall(`${API_BASE_URL}/api/v1/users/me`, {
+        method: 'DELETE'
+    });
+};
