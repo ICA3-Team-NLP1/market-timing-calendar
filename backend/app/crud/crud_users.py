@@ -1,4 +1,5 @@
 from typing import Dict, Tuple
+import logging
 from sqlalchemy.orm import Session
 
 from app.crud.base import CRUDBase
@@ -7,9 +8,32 @@ from app.schemas.users import UsersCreate
 from app.constants import UserLevel
 from app.core.config import LevelConfig
 
+logger = logging.getLogger(__name__)
+
 
 class CRUDUsers(CRUDBase[Users, UsersCreate, None]):
     """사용자 CRUD 클래스"""
+    
+    def delete_user(self, db: Session, user: Users) -> bool:
+        """
+        사용자 계정을 삭제합니다.
+        
+        Args:
+            db: 데이터베이스 세션
+            user: 삭제할 사용자 객체
+        
+        Returns:
+            bool: 삭제 성공 여부
+        """
+        try:
+            # 사용자와 관련된 모든 데이터 삭제 (cascade 설정으로 자동 처리)
+            db.delete(user)
+            db.commit()
+            return True
+        except Exception as e:
+            db.rollback()
+            raise ValueError(f"사용자 삭제 중 오류가 발생했습니다: {str(e)}")
+    
     def update_user_exp(self, db: Session, user: Users, event_type: str) -> Tuple[Users, bool]:
         """
         사용자 경험치를 업데이트하고 레벨업 여부를 확인합니다.

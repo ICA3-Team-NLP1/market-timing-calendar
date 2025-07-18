@@ -7,7 +7,7 @@ import {
     signOut
 } from 'firebase/auth';
 import { auth } from '../firebase';
-import { getCurrentUser } from '../utils/api'; // 🔧 API 함수 import
+import { getCurrentUser, deleteUser } from '../utils/api'; // 🔧 API 함수 import
 import './Login.css';
 
 const Login = ({ user, setUser }) => {
@@ -18,6 +18,7 @@ const Login = ({ user, setUser }) => {
     const [error, setError] = useState('');
     const [apiResult, setApiResult] = useState(null); // 🔧 API 결과 저장
     const [apiLoading, setApiLoading] = useState(false); // 🔧 API 호출 로딩
+    const [deleteLoading, setDeleteLoading] = useState(false); // 🔧 탈퇴 로딩
 
     // 이메일/비밀번호 로그인
     // const handleEmailLogin = async (e) => {
@@ -95,6 +96,35 @@ const Login = ({ user, setUser }) => {
         }
     };
 
+    // 🔧 사용자 탈퇴
+    const handleDeleteAccount = async () => {
+        if (!window.confirm('정말로 계정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+            return;
+        }
+
+        setDeleteLoading(true);
+        setError('');
+
+        try {
+            console.log('🗑️ 계정 삭제 시작...');
+            const result = await deleteUser();
+            
+            console.log('✅ 계정 삭제 성공:', result);
+            
+            // Firebase에서도 로그아웃
+            await signOut(auth);
+            setUser(null);
+            setApiResult(null);
+            
+            alert('계정이 성공적으로 삭제되었습니다.');
+        } catch (error) {
+            console.error('❌ 계정 삭제 실패:', error);
+            setError(`계정 삭제 실패: ${error.message}`);
+        } finally {
+            setDeleteLoading(false);
+        }
+    };
+
     // 이미 로그인된 경우
     if (user) {
         return (
@@ -158,9 +188,27 @@ const Login = ({ user, setUser }) => {
                         </div>
                     )}
 
-                    <button onClick={handleLogout} className="logout-btn">
-                        로그아웃
-                    </button>
+                    <div style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
+                        <button onClick={handleLogout} className="logout-btn">
+                            로그아웃
+                        </button>
+                        <button 
+                            onClick={handleDeleteAccount} 
+                            disabled={deleteLoading}
+                            className="delete-btn"
+                            style={{
+                                backgroundColor: deleteLoading ? '#ccc' : '#dc3545',
+                                color: 'white',
+                                border: 'none',
+                                padding: '10px 20px',
+                                borderRadius: '5px',
+                                cursor: deleteLoading ? 'not-allowed' : 'pointer',
+                                fontSize: '14px'
+                            }}
+                        >
+                            {deleteLoading ? '🗑️ 삭제 중...' : '🗑️ 계정 삭제'}
+                        </button>
+                    </div>
                 </div>
             </div>
         );
