@@ -17,7 +17,7 @@ class ConversationRequest(BaseModel):
 
     history: list[ChatMessage] = []  # 이전 대화 내역
     question: str  # 사용자의 새로운 질문
-    safety_level: str = None  # 필터링 안전 수준 (선택사항)
+    safety_level: str | None = None  # 필터링 안전 수준 (선택사항)
 
 
 class EventExplainRequest(BaseModel):
@@ -25,10 +25,11 @@ class EventExplainRequest(BaseModel):
 
     특정 금융 이벤트나 경제 지표에 대한 설명을 요청할 때 사용하는 모델
     대화 내역 없이 단발성 질문으로 사용됨
+    Events 테이블의 id를 사용하여 이벤트를 조회합니다.
     """
 
-    release_id: str  # Events 테이블의 release_id (예: CPILFESL, UNRATE 등)
-    safety_level: str = None  # 필터링 안전 수준 (선택사항)
+    id: int  # Events 테이블의 id (예: 1, 2, 3 등)
+    safety_level: str | None = None  # 필터링 안전 수준 (선택사항)
 
 
 class SafetyCheckRequest(BaseModel):
