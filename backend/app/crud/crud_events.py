@@ -9,22 +9,6 @@ from app.constants import UserLevel
 
 
 class CRUDEvents(CRUDBase[Events, EventCreate, None]):
-    def get_by_id(self, session: Session, id: int) -> Events:
-        """
-        id로 이벤트 조회
-
-        Args:
-            session: DB 세션
-            id: Event id (예: 1, 2, 3 등)
-
-        Returns:
-            해당 id의 이벤트 객체 또는 None
-        """
-        return (
-            session.query(Events)
-            .filter(Events.id == id, Events.dropped_at.is_(None))  # 삭제되지 않은 이벤트만
-            .first()
-        )
 
     def get_user_subscription_events(
         self, session: Session, user_id: int, start_date: date, end_date: date, user_level: UserLevel = None

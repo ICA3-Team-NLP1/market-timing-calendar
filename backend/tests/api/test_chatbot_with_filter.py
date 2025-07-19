@@ -64,7 +64,7 @@ class TestChatbotWithFilter:
         # 디버그: 원본 stream_chat 메서드 호출 확인
         mock_llm_instance.stream_chat.assert_called_once()
 
-    @patch("app.crud.crud_events.crud_events.get_by_id")
+    @patch("app.crud.crud_events.crud_events.get")
     @patch("app.api.v1.chatbot.LLMClient")
     def test_explain_event_with_filter(
         self, mock_llm_client, mock_get_event, client, session, mock_firebase_token, auth_headers
