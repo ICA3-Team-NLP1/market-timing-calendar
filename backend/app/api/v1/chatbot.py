@@ -15,6 +15,13 @@ from app.crud.crud_events import crud_events
 from app.schemas.chatbot import *
 from app.services.filter_service import FilterService
 
+# Langfuse observe 데코레이터 임포트
+try:
+    from langfuse import observe
+    LANGFUSE_OBSERVE_AVAILABLE = True
+except ImportError:
+    LANGFUSE_OBSERVE_AVAILABLE = False
+    observe = None
 
 chatbot_router = APIRouter()
 
@@ -37,11 +44,13 @@ def _build_messages(level: UserLevel, history: List[ChatMessage], question: str)
     return messages
 
 
+@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/conversation")
 async def conversation(
     req: ConversationRequest,
     use_filter: bool = Query(True, description="필터링 사용 여부"),
-    # db_user: Users = Depends(get_or_create_user),
+    db_user: Users = Depends(get_or_create_user),
+    db: Session = Depends(get_session),
 ):
     """대화 내역 기반 질문 처리
 
@@ -55,12 +64,15 @@ async def conversation(
     """
     try:
         messages = _build_messages(UserLevel.BEGINNER, req.history, req.question)
-        llm_client = LLMClient()
+        # 사용자 정보를 LLMClient에 전달 (현재는 주석 처리된 db_user 사용)
+        llm_client = LLMClient(user=db_user)  # db_user가 활성화되면 사용
+        # llm_client = LLMClient()
 
         async def stream():
             if use_filter:
                 # 필터링 적용된 스트리밍
-                async for chunk in llm_client.stream_chat_with_filter(messages, safety_level=req.safety_level):
+                safety_level = req.safety_level or "moderate"  # 기본값 설정
+                async for chunk in llm_client.stream_chat_with_filter(messages, safety_level=safety_level):
                     yield chunk
             else:
                 # 기존 방식 (필터링 없음)
@@ -73,6 +85,7 @@ async def conversation(
         raise HTTPException(status_code=500, detail="대화 처리 중 오류가 발생했습니다.")
 
 
+@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/event/explain")
 async def explain_event(
     req: EventExplainRequest,
@@ -114,12 +127,13 @@ async def explain_event(
             {"role": "user", "content": event_context},
         ]
 
-        llm_client = LLMClient()
+        llm_client = LLMClient(user=db_user)
 
         async def stream():
             if use_filter:
                 # 필터링 적용된 스트리밍
-                async for chunk in llm_client.stream_chat_with_filter(messages, safety_level=req.safety_level):
+                safety_level = req.safety_level or "moderate"  # 기본값 설정
+                async for chunk in llm_client.stream_chat_with_filter(messages, safety_level=safety_level):
                     yield chunk
             else:
                 # 기존 방식 (필터링 없음)
@@ -134,8 +148,9 @@ async def explain_event(
         raise HTTPException(status_code=500, detail="이벤트 설명 처리 중 오류가 발생했습니다.")
 
 
+@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/safety/check")
-async def check_content_safety(req: SafetyCheckRequest, _: Users = Depends(get_or_create_user)):
+async def check_content_safety(req: SafetyCheckRequest, db_user: Users = Depends(get_or_create_user)):
     """컨텐츠 안전성 검사
 
     주어진 컨텐츠의 안전성을 검사하고 위험 요소를 분석합니다.
@@ -143,6 +158,7 @@ async def check_content_safety(req: SafetyCheckRequest, _: Users = Depends(get_o
 
     Args:
         req: 안전성 검사 요청
+        db_user: 현재 사용자 정보
 
     Returns:
         {
@@ -155,7 +171,7 @@ async def check_content_safety(req: SafetyCheckRequest, _: Users = Depends(get_o
     """
     try:
 
-        llm_client = LLMClient()
+        llm_client = LLMClient(user=db_user)
         result = await llm_client.check_content_safety(req.content)
 
         return result
@@ -165,10 +181,13 @@ async def check_content_safety(req: SafetyCheckRequest, _: Users = Depends(get_o
 
 
 @chatbot_router.get("/filter/status")
-async def get_filter_status(_: Users = Depends(get_or_create_user)):
+async def get_filter_status(db_user: Users = Depends(get_or_create_user)):
     """필터링 시스템 상태 조회
 
     현재 필터링 시스템의 설정과 상태를 조회합니다.
+
+    Args:
+        db_user: 현재 사용자 정보
 
     Returns:
         {

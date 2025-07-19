@@ -37,8 +37,8 @@ class FilterState(TypedDict):
 class ContentFilter:
     """LangGraph 기반 컨텐츠 필터링 시스템"""
 
-    def __init__(self):
-        self.llm_client = LLMClient()
+    def __init__(self, user=None):
+        self.llm_client = LLMClient(user=user)
         self.safety_threshold = SAFETY_THRESHOLDS.get(settings.FILTER_SAFETY_LEVEL, SAFETY_THRESHOLDS["strict"])
         self.max_retries = settings.FILTER_MAX_RETRIES
         self.graph = self._build_graph()
