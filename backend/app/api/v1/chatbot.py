@@ -93,7 +93,7 @@ async def explain_event(
     """
     try:
         # id로 이벤트 조회
-        event = crud_events.get_by_id(db, req.id)
+        event = crud_events.get(db, id=req.id)
         if not event:
             raise HTTPException(status_code=404, detail=f"Event with id '{req.id}' not found")
 
