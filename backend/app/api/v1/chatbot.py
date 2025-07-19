@@ -23,6 +23,13 @@ from app.services.mem0_client import mem0_client
 
 logger = logging.getLogger(__name__)
 
+# Langfuse observe 데코레이터 임포트
+try:
+    from langfuse import observe
+    LANGFUSE_OBSERVE_AVAILABLE = True
+except ImportError:
+    LANGFUSE_OBSERVE_AVAILABLE = False
+    observe = None
 
 chatbot_router = APIRouter()
 
@@ -49,6 +56,7 @@ def _build_messages(
     return messages
 
 
+@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/conversation")
 async def conversation(
     req: ConversationRequest,
@@ -99,7 +107,7 @@ async def conversation(
                 memory_context = mem0_provider.build_memory_context(relevant_memories)
                 logger.debug(f"🧠 관련 메모리 {len(relevant_memories)}개 발견")
 
-        llm_client = LLMClient()
+        llm_client = LLMClient(user=db_user)
 
         async def stream():
             full_response = ""
@@ -149,6 +157,7 @@ async def conversation(
         raise HTTPException(status_code=500, detail="대화 처리 중 오류가 발생했습니다.")
 
 
+@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/event/explain")
 async def explain_event(
     req: EventExplainRequest,
@@ -190,7 +199,7 @@ async def explain_event(
             {"role": "user", "content": event_context},
         ]
 
-        llm_client = LLMClient()
+        llm_client = LLMClient(user=db_user)
 
         async def stream():
             if use_filter:
@@ -210,8 +219,9 @@ async def explain_event(
         raise HTTPException(status_code=500, detail="이벤트 설명 처리 중 오류가 발생했습니다.")
 
 
+@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/safety/check")
-async def check_content_safety(req: SafetyCheckRequest, _: Users = Depends(get_or_create_user)):
+async def check_content_safety(req: SafetyCheckRequest, db_user: Users = Depends(get_or_create_user)):
     """컨텐츠 안전성 검사
 
     주어진 컨텐츠의 안전성을 검사하고 위험 요소를 분석합니다.
@@ -219,6 +229,7 @@ async def check_content_safety(req: SafetyCheckRequest, _: Users = Depends(get_o
 
     Args:
         req: 안전성 검사 요청
+        db_user: 현재 사용자 정보
 
     Returns:
         {
@@ -231,7 +242,7 @@ async def check_content_safety(req: SafetyCheckRequest, _: Users = Depends(get_o
     """
     try:
 
-        llm_client = LLMClient()
+        llm_client = LLMClient(user=db_user)
         result = await llm_client.check_content_safety(req.content)
 
         return result
@@ -241,10 +252,13 @@ async def check_content_safety(req: SafetyCheckRequest, _: Users = Depends(get_o
 
 
 @chatbot_router.get("/filter/status")
-async def get_filter_status(_: Users = Depends(get_or_create_user)):
+async def get_filter_status(db_user: Users = Depends(get_or_create_user)):
     """필터링 시스템 상태 조회
 
     현재 필터링 시스템의 설정과 상태를 조회합니다.
+
+    Args:
+        db_user: 현재 사용자 정보
 
     Returns:
         {

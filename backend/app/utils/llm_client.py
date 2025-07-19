@@ -1,19 +1,35 @@
-from __future__ import annotations
+#!/usr/bin/env python3
+"""LLM Client - OpenAI 및 Anthropic API 추상화"""
 
-from typing import AsyncGenerator, List, Dict
+import logging
+from typing import AsyncGenerator, Dict, List, Optional
+
+from langchain_core.prompts import ChatPromptTemplate
 
 from app.core.llm import LLMFactory, LangfuseManager
-from langchain_core.prompts import ChatPromptTemplate
+from app.core.langfuse_factory import LangfuseFactory
+
+# Langfuse observe 데코레이터 임포트
+try:
+    from langfuse import observe
+    LANGFUSE_OBSERVE_AVAILABLE = True
+except ImportError:
+    LANGFUSE_OBSERVE_AVAILABLE = False
+    observe = None
+
+logger = logging.getLogger(__name__)
 
 
 class LLMClient:
     """Simple abstraction over OpenAI and Anthropic chat APIs."""
 
-    def __init__(self) -> None:
+    def __init__(self, user=None, langfuse_manager: Optional[LangfuseManager] = None) -> None:
         # core 모듈의 LLMFactory 사용 - 공통 로직 재사용
         self.llm = LLMFactory.create_llm()
-        # Langfuse Manager 초기화
-        self.langfuse_manager = LangfuseManager(service_name="backend_chatbot")
+        # Langfuse Manager 초기화 (의존성 주입 또는 기본 생성)
+        self.langfuse_manager = langfuse_manager or LangfuseFactory.create_app_manager(user)
+        # user 정보 저장
+        self.user = user
         # 필터링 서비스 지연 로드 (순환 참조 방지)
         self._filter_service = None
 
@@ -23,7 +39,7 @@ class LLMClient:
         if self._filter_service is None:
             from app.services.filter_service import FilterService
 
-            self._filter_service = FilterService()
+            self._filter_service = FilterService(user=self.user)
         return self._filter_service
 
     def _create_chain(self, messages: List[Dict[str, str]]):
@@ -63,18 +79,49 @@ class LLMClient:
             conversation_history = "\n".join(history_parts)
             return {"conversation_history": conversation_history, "user_input": user_input}
 
+    @observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+    async def stream_chat_observed(self, messages: List[Dict[str, str]]) -> AsyncGenerator[str, None]:
+        """@observe() 데코레이터를 사용한 스트리밍 채팅"""
+        if LANGFUSE_OBSERVE_AVAILABLE and self.langfuse_manager:
+            # trace 메타데이터 설정
+            self.langfuse_manager.update_current_trace(
+                name="stream_chat",
+                input_data={"messages_count": len(messages), "service": "backend_chatbot"}
+            )
+
+        chain = self._create_chain(messages)
+        input_data = self._prepare_input_data(messages)
+        config = self.langfuse_manager.get_callback_config()
+
+        print(f"🚀 Backend stream_chat_observed 시작: {len(messages)}개 메시지")
+        print(f"📝 Input data: {input_data}")
+        print(f"👤 User ID: {self.langfuse_manager.user_id}, Session ID: {self.langfuse_manager.session_id}")
+
+        async for chunk in chain.astream(input_data, config=config):
+            if chunk.content:
+                yield chunk.content
+
+        if LANGFUSE_OBSERVE_AVAILABLE and self.langfuse_manager:
+            self.langfuse_manager.update_current_trace(output_data={"status": "completed"})
+
+        print(f"📊 Backend stream_chat_observed 완료 - Langfuse 추적됨")
+
     async def stream_chat(self, messages: List[Dict[str, str]]) -> AsyncGenerator[str, None]:
         """Yield assistant message chunks using LCEL."""
+        # @observe() 데코레이터가 사용 가능한 경우 새로운 메서드 사용
+        if LANGFUSE_OBSERVE_AVAILABLE:
+            async for chunk in self.stream_chat_observed(messages):
+                yield chunk
+            return
+
+        # 기존 방식 (fallback)
         chain = self._create_chain(messages)
-
-        # 메시지 분석 및 입력 데이터 구성
         input_data = self._prepare_input_data(messages)
-
-        # Langfuse callback 설정 (공통 유틸리티 사용)
         config = self.langfuse_manager.get_callback_config()
 
         print(f"🚀 Backend stream_chat 시작: {len(messages)}개 메시지")
         print(f"📝 Input data: {input_data}")
+        print(f"👤 User ID: {self.langfuse_manager.user_id}, Session ID: {self.langfuse_manager.session_id}")
 
         async for chunk in chain.astream(input_data, config=config):
             if chunk.content:
@@ -126,18 +173,47 @@ class LLMClient:
             error_message = "죄송합니다. 현재 응답을 생성할 수 없습니다. 잠시 후 다시 시도해주세요."
             yield error_message
 
+    @observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+    async def chat_observed(self, messages: List[Dict[str, str]]) -> str:
+        """@observe() 데코레이터를 사용한 채팅"""
+        if LANGFUSE_OBSERVE_AVAILABLE and self.langfuse_manager:
+            # trace 메타데이터 설정
+            self.langfuse_manager.update_current_trace(
+                name="chat",
+                input_data={"messages_count": len(messages), "service": "backend_chatbot"}
+            )
+
+        chain = self._create_chain(messages)
+        input_data = self._prepare_input_data(messages)
+        config = self.langfuse_manager.get_callback_config()
+
+        print(f"🚀 Backend chat_observed 시작: {len(messages)}개 메시지")
+        print(f"📝 Input data: {input_data}")
+        print(f"👤 User ID: {self.langfuse_manager.user_id}, Session ID: {self.langfuse_manager.session_id}")
+
+        result = await chain.ainvoke(input_data, config=config)
+
+        if LANGFUSE_OBSERVE_AVAILABLE and self.langfuse_manager:
+            self.langfuse_manager.update_current_trace(output_data={"status": "completed"})
+
+        print(f"📊 Backend chat_observed 완료 - Langfuse 추적됨")
+
+        return result.content if hasattr(result, "content") else str(result)
+
     async def chat(self, messages: List[Dict[str, str]]) -> str:
         """Return full assistant message."""
+        # @observe() 데코레이터가 사용 가능한 경우 새로운 메서드 사용
+        if LANGFUSE_OBSERVE_AVAILABLE:
+            return await self.chat_observed(messages)
+
+        # 기존 방식 (fallback)
         chain = self._create_chain(messages)
-
-        # 메시지 분석 및 입력 데이터 구성
         input_data = self._prepare_input_data(messages)
-
-        # Langfuse callback 설정 (공통 유틸리티 사용)
         config = self.langfuse_manager.get_callback_config()
 
         print(f"🚀 Backend chat 시작: {len(messages)}개 메시지")
         print(f"📝 Input data: {input_data}")
+        print(f"👤 User ID: {self.langfuse_manager.user_id}, Session ID: {self.langfuse_manager.session_id}")
 
         result = await chain.ainvoke(input_data, config=config)
 

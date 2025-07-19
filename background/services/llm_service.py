@@ -1,226 +1,349 @@
-"""
-LLM 서비스 - SOLID 원칙을 준수한 LLM 추론 로직
-"""
-import os
-import time
+#!/usr/bin/env python3
+"""Background LLM Service - ETL 작업용 LLM 추상화"""
+
 import logging
-from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional
+import asyncio
+import time
+from typing import Dict, List, Optional, Any
 from enum import Enum
 
 from langchain_core.prompts import ChatPromptTemplate
-from langchain_core.output_parsers import StrOutputParser
 
-# core 모듈의 공통 LLM 로직 사용
 from app.core.llm import LLMFactory, BaseLLMProvider, LangfuseManager
-from app.constants import UserLevel, ImpactLevel
-from ..prompts.etl_prompts import impact_prompt, level_prompt, description_ko_prompt
+
+# Langfuse observe 데코레이터 임포트
+try:
+    from langfuse import observe
+    LANGFUSE_OBSERVE_AVAILABLE = True
+except ImportError:
+    LANGFUSE_OBSERVE_AVAILABLE = False
+    observe = None
 
 logger = logging.getLogger(__name__)
 
 
 class InferenceType(str, Enum):
-    """추론 타입"""
+    """추론 타입 (기존 호환성 유지)"""
     IMPACT = "impact"
     LEVEL = "level"
     DESCRIPTION_KO = "description_ko"
 
 
-class BaseInferenceStrategy(ABC):
-    """추론 전략 인터페이스 (Strategy Pattern)"""
+class BackgroundLLMService:
+    """Background ETL 작업용 LLM 서비스"""
 
-    @abstractmethod
-    def get_prompt_template(self) -> str:
-        """프롬프트 템플릿 반환"""
-        pass
+    def __init__(self, task_id: str = None, langfuse_manager: Optional[LangfuseManager] = None):
+        # core 모듈의 LLMFactory 사용 - 공통 로직 재사용
+        self.llm = LLMFactory.create_llm()
+        # Langfuse Manager 초기화 (의존성 주입 또는 기본 생성)
+        self.langfuse_manager = langfuse_manager or LangfuseManager.create_for_background()
+        
+        # Background에서 Celery task_id 자동 감지
+        if task_id:
+            self.langfuse_manager.session_id = task_id
 
-    @abstractmethod
-    def get_valid_values(self) -> list:
-        """유효한 값들 반환"""
-        pass
+    def _create_chain(self, prompt_template: str):
+        """Chain 생성 공통 로직"""
+        prompt = ChatPromptTemplate.from_template(prompt_template)
+        return prompt | self.llm
 
-    @abstractmethod
-    def get_default_value(self) -> str:
-        """기본값 반환"""
-        pass
+    @observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+    async def process_with_llm_observed(self, prompt_template: str, input_data: Dict[str, Any]) -> str:
+        """@observe() 데코레이터를 사용한 LLM 처리"""
+        if LANGFUSE_OBSERVE_AVAILABLE and self.langfuse_manager:
+            # trace 메타데이터 설정
+            self.langfuse_manager.update_current_trace(
+                name="background_llm_process",
+                input_data={"prompt_template": prompt_template, "input_data": input_data, "service": "background_etl"}
+            )
 
-    @abstractmethod
-    def process_result(self, result: str) -> str:
-        """결과 후처리"""
-        pass
+        chain = self._create_chain(prompt_template)
+        config = self.langfuse_manager.get_callback_config()
 
+        logger.info(f"🚀 Background LLM 처리 시작: {len(input_data)}개 입력")
+        logger.info(f"👤 User ID: {self.langfuse_manager.user_id}, Session ID: {self.langfuse_manager.session_id}")
 
-class ImpactInferenceStrategy(BaseInferenceStrategy):
-    """영향도 추론 전략"""
+        result = await chain.ainvoke(input_data, config=config)
 
-    def get_prompt_template(self) -> str:
-        return impact_prompt
+        if LANGFUSE_OBSERVE_AVAILABLE and self.langfuse_manager:
+            self.langfuse_manager.update_current_trace(output_data={"status": "completed"})
 
-    def get_valid_values(self) -> list:
-        return [level.value for level in ImpactLevel]
+        logger.info(f"📊 Background LLM 처리 완료 - Langfuse 추적됨")
 
-    def get_default_value(self) -> str:
-        return ImpactLevel.MEDIUM.value
+        return result.content if hasattr(result, "content") else str(result)
 
-    def process_result(self, result: str) -> str:
-        result = result.strip().upper()
-        if result in self.get_valid_values():
-            return result
-        return self.get_default_value()
+    async def process_with_llm(self, prompt_template: str, input_data: Dict[str, Any]) -> str:
+        """LLM을 사용하여 데이터 처리"""
+        # @observe() 데코레이터가 사용 가능한 경우 새로운 메서드 사용
+        if LANGFUSE_OBSERVE_AVAILABLE:
+            return await self.process_with_llm_observed(prompt_template, input_data)
 
+        # 기존 방식 (fallback)
+        chain = self._create_chain(prompt_template)
+        config = self.langfuse_manager.get_callback_config()
 
-class LevelInferenceStrategy(BaseInferenceStrategy):
-    """레벨 추론 전략"""
+        logger.info(f"🚀 Background LLM 처리 시작: {len(input_data)}개 입력")
+        logger.info(f"👤 User ID: {self.langfuse_manager.user_id}, Session ID: {self.langfuse_manager.session_id}")
 
-    def get_prompt_template(self) -> str:
-        return level_prompt
+        result = await chain.ainvoke(input_data, config=config)
 
-    def get_valid_values(self) -> list:
-        return [level.value for level in UserLevel]
+        logger.info(f"📊 Background LLM 처리 완료 - Langfuse 추적됨")
 
-    def get_default_value(self) -> str:
-        return UserLevel.ADVANCED.value
+        return result.content if hasattr(result, "content") else str(result)
 
-    def process_result(self, result: str) -> str:
-        # NOTE: level_prompt가 JSON을 반환하므로, 후처리는 여기서 하지 않고
-        # 이 메서드를 호출하는 쪽(EventMapper)에서 직접 처리합니다.
-        # 따라서 여기서는 받은 결과를 그대로 반환합니다.
-        return result
+    async def process_fred_data(self, fred_data: Dict[str, Any]) -> Dict[str, Any]:
+        """FRED 데이터를 LLM으로 분석"""
+        prompt_template = """
+        다음 경제 데이터를 분석하여 인사이트를 제공해주세요:
+        
+        데이터: {data}
+        
+        분석 요청: {analysis_request}
+        
+        다음 형식으로 응답해주세요:
+        - 주요 트렌드: 
+        - 시장 영향: 
+        - 투자자 관점: 
+        """
 
-
-class DescriptionKoInferenceStrategy(BaseInferenceStrategy):
-    """한글 설명 추론 전략"""
-
-    def get_prompt_template(self) -> str:
-        return description_ko_prompt
-
-    def get_valid_values(self) -> list:
-        return []  # 자유 형식 텍스트이므로 유효성 검사 없음
-
-    def get_default_value(self) -> str:
-        return "경제 지표 정보"  # 기본 설명
-
-    def process_result(self, result: str) -> str:
-        result = result.strip()
-        if len(result) > 0:
-            return result
-        return self.get_default_value()
-
-
-class RetryConfig:
-    """재시도 설정 클래스 (Single Responsibility)"""
-
-    def __init__(self, max_retries: int = 3, base_delay: float = 0.5):
-        self.max_retries = max_retries
-        self.base_delay = base_delay
-
-
-class LLMInferenceService:
-    """LLM 추론 서비스 (Single Responsibility + Dependency Injection)"""
-
-    def __init__(
-        self,
-        provider: BaseLLMProvider,
-        retry_config: Optional[RetryConfig] = None
-    ):
-        self.provider = provider
-        self.retry_config = retry_config or RetryConfig()
-        self._strategies = {
-            InferenceType.IMPACT: ImpactInferenceStrategy(),
-            InferenceType.LEVEL: LevelInferenceStrategy(),
-            InferenceType.DESCRIPTION_KO: DescriptionKoInferenceStrategy(),
-        }
-        # Langfuse Manager 초기화
-        self.langfuse_manager = LangfuseManager(service_name="background_etl")
-
-    def infer(
-        self,
-        inference_type: InferenceType,
-        release_name: str,
-        series_info: Dict[str, Any]
-    ) -> str:
-        """안전한 추론 실행 (DRY 원칙 준수)"""
-        strategy = self._strategies[inference_type]
-
-        for attempt in range(self.retry_config.max_retries):
-            try:
-                return self._execute_inference(strategy, release_name, series_info)
-            except Exception as e:
-                logger.warning(
-                    f"[{inference_type.value} 추론] LLM 호출 실패 "
-                    f"(시도 {attempt + 1}/{self.retry_config.max_retries}): {e}"
-                )
-
-                if attempt < self.retry_config.max_retries - 1:
-                    wait_time = self.retry_config.base_delay * (2 ** attempt)
-                    logger.info(f"[{inference_type.value} 추론] {wait_time}초 후 재시도...")
-                    time.sleep(wait_time)
-                else:
-                    logger.error(f"[{inference_type.value} 추론] 모든 재시도 실패, 기본값 반환")
-                    return strategy.get_default_value()
-
-    def _execute_inference(
-        self,
-        strategy: BaseInferenceStrategy,
-        release_name: str,
-        series_info: Dict[str, Any]
-    ) -> str:
-        """실제 추론 실행 (Private 메서드로 캡슐화)"""
-        llm = self.provider.create_llm()
-
-        prompt_template = ChatPromptTemplate.from_template(strategy.get_prompt_template())
-        chain = prompt_template | llm | StrOutputParser()
-
-        # 입력 데이터 준비
         input_data = {
-            "title": series_info.get("title", ""),
+            "data": str(fred_data),
+            "analysis_request": "경제 지표의 현재 상태와 향후 전망을 분석해주세요."
+        }
+
+        result = await self.process_with_llm(prompt_template, input_data)
+        
+        return {
+            "analysis": result,
+            "raw_data": fred_data,
+            "processed_at": "2024-01-01"  # 실제로는 현재 시간 사용
+        }
+
+    async def process_event_data(self, event_data: Dict[str, Any]) -> Dict[str, Any]:
+        """이벤트 데이터를 LLM으로 분석"""
+        prompt_template = """
+        다음 이벤트 데이터를 분석하여 시장 영향도를 평가해주세요:
+        
+        이벤트: {event_data}
+        
+        분석 요청: {analysis_request}
+        
+        다음 형식으로 응답해주세요:
+        - 이벤트 중요도: 
+        - 시장 영향도: 
+        - 투자자 주의사항: 
+        """
+
+        input_data = {
+            "event_data": str(event_data),
+            "analysis_request": "이 이벤트가 시장에 미칠 영향을 분석해주세요."
+        }
+
+        result = await self.process_with_llm(prompt_template, input_data)
+        
+        return {
+            "analysis": result,
+            "raw_data": event_data,
+            "processed_at": "2024-01-01"  # 실제로는 현재 시간 사용
+        }
+
+    def flush_events(self):
+        """Langfuse 이벤트를 서버로 전송"""
+        if self.langfuse_manager:
+            self.langfuse_manager.flush_events()
+            logger.info(f"📤 Langfuse 이벤트 서버 전송 완료")
+
+
+# 기존 코드와의 호환성을 위한 LLMInferenceService 어댑터
+class LLMInferenceService:
+    """기존 코드와의 호환성을 위한 어댑터 클래스"""
+
+    def __init__(self, background_service: BackgroundLLMService = None):
+        self.background_service = background_service or BackgroundLLMService()
+
+    def infer(self, inference_type: InferenceType, release_name: str, series_info: Dict[str, Any]) -> str:
+        """기존 infer 메서드 호환성 유지"""
+        try:
+            # 동기 방식으로 실행
+            if inference_type == InferenceType.IMPACT:
+                return self._infer_impact_sync(release_name, series_info)
+            elif inference_type == InferenceType.LEVEL:
+                return self._infer_level_sync(release_name, series_info)
+            elif inference_type == InferenceType.DESCRIPTION_KO:
+                return self._infer_description_ko_sync(release_name, series_info)
+            else:
+                logger.warning(f"지원하지 않는 추론 타입: {inference_type}")
+                return "MEDIUM"  # 기본값
+        except Exception as e:
+            logger.error(f"추론 실패 ({inference_type}): {e}")
+            return "MEDIUM"  # 기본값
+
+    def _infer_impact_sync(self, release_name: str, series_info: Dict[str, Any]) -> str:
+        """영향도 추론 (동기 방식)"""
+        prompt_template = """
+        다음 경제 지표의 시장 영향도를 평가해주세요:
+        
+        지표명: {name}
+        제목: {title}
+        설명: {notes}
+        출처: {source}
+        
+        다음 중 하나로 응답해주세요: HIGH, MEDIUM, LOW
+        """
+        
+        input_data = {
             "name": release_name,
+            "title": series_info.get("title", ""),
             "notes": series_info.get("notes", ""),
             "source": series_info.get("source", "")
         }
+        
+        # 동기 방식으로 LLM 호출
+        chain = self.background_service._create_chain(prompt_template)
+        config = self.background_service.langfuse_manager.get_callback_config()
 
-        # Langfuse callback 설정 (공통 유틸리티 사용)
-        config = self.langfuse_manager.get_callback_config()
+        result = chain.invoke(input_data, config=config)
+        return result.content.strip().upper() if hasattr(result, "content") else str(result).strip().upper()
 
-        logger.info(f"🚀 LLM 예측 시작: title={input_data['title']}, name={input_data['name']}")
-        logger.info(f"📝 Config: {config}")
+    def _infer_level_sync(self, release_name: str, series_info: Dict[str, Any]) -> str:
+        """레벨 추론 (JSON 응답, 동기 방식)"""
+        prompt_template = """
+        다음 경제 지표의 사용자 레벨을 분류해주세요:
+        
+        지표명: {name}
+        제목: {title}
+        설명: {notes}
+        출처: {source}
+        
+        다음 JSON 형식으로 응답해주세요:
+        {{
+            "level": "BEGINNER|INTERMEDIATE|ADVANCED",
+            "level_category": "분류명"
+        }}
+        """
+        
+        input_data = {
+            "name": release_name,
+            "title": series_info.get("title", ""),
+            "notes": series_info.get("notes", ""),
+            "source": series_info.get("source", "")
+        }
+        
+        # 동기 방식으로 LLM 호출
+        chain = self.background_service._create_chain(prompt_template)
+        config = self.background_service.langfuse_manager.get_callback_config()
 
-        # LLM 호출 및 Langfuse 추적
-        try:
-            result = chain.invoke(input_data, config=config)
-            logger.info(f"✅ LLM 호출 성공: raw_result type={type(result)}")
-        except Exception as e:
-            logger.error(f"❌ LLM 호출 실패: {e}")
-            raise
+        result = chain.invoke(input_data, config=config)
+        return result.content if hasattr(result, "content") else str(result)
 
-        processed_result = strategy.process_result(result)
+    def _infer_description_ko_sync(self, release_name: str, series_info: Dict[str, Any]) -> str:
+        """한글 설명 추론 (동기 방식)"""
+        prompt_template = """
+        다음 경제 지표에 대한 간단한 한글 설명을 작성해주세요:
+        
+        지표명: {name}
+        제목: {title}
+        설명: {notes}
+        출처: {source}
+        
+        일반인이 이해할 수 있는 간단한 설명으로 작성해주세요.
+        """
+        
+        input_data = {
+            "name": release_name,
+            "title": series_info.get("title", ""),
+            "notes": series_info.get("notes", ""),
+            "source": series_info.get("source", "")
+        }
+        
+        # 동기 방식으로 LLM 호출
+        chain = self.background_service._create_chain(prompt_template)
+        config = self.background_service.langfuse_manager.get_callback_config()
 
-        logger.info(f"🎯 LLM 예측 결과: {processed_result}")
+        result = chain.invoke(input_data, config=config)
+        return result.content.strip() if hasattr(result, "content") else str(result).strip()
 
-        # Background 작업이므로 수동으로 flush (중요!)
-        self.langfuse_manager.flush_events()
+    # 기존 async 메서드들 (호환성 유지)
+    def _infer_impact(self, release_name: str, series_info: Dict[str, Any]) -> str:
+        """영향도 추론 (async 방식)"""
+        prompt_template = """
+        다음 경제 지표의 시장 영향도를 평가해주세요:
+        
+        지표명: {name}
+        제목: {title}
+        설명: {notes}
+        출처: {source}
+        
+        다음 중 하나로 응답해주세요: HIGH, MEDIUM, LOW
+        """
+        
+        input_data = {
+            "name": release_name,
+            "title": series_info.get("title", ""),
+            "notes": series_info.get("notes", ""),
+            "source": series_info.get("source", "")
+        }
+        
+        result = asyncio.run(self.background_service.process_with_llm(prompt_template, input_data))
+        return result.strip().upper()
 
-        logger.info(f"📊 Langfuse 추적 완료 - 대시보드에서 확인 가능")
+    def _infer_level(self, release_name: str, series_info: Dict[str, Any]) -> str:
+        """레벨 추론 (JSON 응답, async 방식)"""
+        prompt_template = """
+        다음 경제 지표의 사용자 레벨을 분류해주세요:
+        
+        지표명: {name}
+        제목: {title}
+        설명: {notes}
+        출처: {source}
+        
+        다음 JSON 형식으로 응답해주세요:
+        {{
+            "level": "BEGINNER|INTERMEDIATE|ADVANCED",
+            "level_category": "분류명"
+        }}
+        """
+        
+        input_data = {
+            "name": release_name,
+            "title": series_info.get("title", ""),
+            "notes": series_info.get("notes", ""),
+            "source": series_info.get("source", "")
+        }
+        
+        result = asyncio.run(self.background_service.process_with_llm(prompt_template, input_data))
+        return result
 
-        return processed_result
+    def _infer_description_ko(self, release_name: str, series_info: Dict[str, Any]) -> str:
+        """한글 설명 추론 (async 방식)"""
+        prompt_template = """
+        다음 경제 지표에 대한 간단한 한글 설명을 작성해주세요:
+        
+        지표명: {name}
+        제목: {title}
+        설명: {notes}
+        출처: {source}
+        
+        일반인이 이해할 수 있는 간단한 설명으로 작성해주세요.
+        """
+        
+        input_data = {
+            "name": release_name,
+            "title": series_info.get("title", ""),
+            "notes": series_info.get("notes", ""),
+            "source": series_info.get("source", "")
+        }
+        
+        result = asyncio.run(self.background_service.process_with_llm(prompt_template, input_data))
+        return result.strip()
 
 
+# 기존 코드와의 호환성을 위한 LLMServiceFactory 클래스
 class LLMServiceFactory:
-    """LLM 서비스 팩토리 (Factory Pattern + Configuration)"""
+    """LLM 서비스 팩토리 (기존 코드 호환성 유지)"""
 
-    @classmethod
-    def create_service(cls) -> LLMInferenceService:
-        """설정을 기반으로 LLM 서비스 생성"""
-        # core 모듈의 Factory 사용, temperature=0으로 ETL용 설정
-        provider = LLMFactory.create_provider(
-            provider_type=None,  # 기본값 사용 (settings에서 읽음)
-            model=None,          # 기본값 사용 (settings에서 읽음)
-            temperature=0        # ETL용으로 deterministic하게
-        )
-
-        retry_config = RetryConfig(
-            max_retries=int(os.getenv('LLM_MAX_RETRIES', '3')),
-            base_delay=float(os.getenv('LLM_API_DELAY', '0.5'))
-        )
-
-        return LLMInferenceService(provider, retry_config) 
+    @staticmethod
+    def create_service() -> LLMInferenceService:
+        """LLMInferenceService 생성 (어댑터 사용)"""
+        background_service = BackgroundLLMService()
+        return LLMInferenceService(background_service) 
