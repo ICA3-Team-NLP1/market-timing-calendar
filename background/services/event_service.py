@@ -3,6 +3,7 @@ Event 저장 서비스 - 데이터베이스 저장 로직
 """
 import logging
 import time
+import re
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 
@@ -52,6 +53,27 @@ class EventMapper:
     def __init__(self, llm_service: LLMInferenceService):
         self.llm_service = llm_service
 
+    def _limit_description_ko_length(self, description_ko: str) -> str:
+        """description_ko 길이를 100자로 제한"""
+        if not description_ko:
+            return ""
+        
+        # 첫 번째 문장만 추출 (마침표, 느낌표, 물음표로 구분)
+        first_sentence_match = re.search(r'[^.!?]*[.!?]', description_ko)
+        if first_sentence_match:
+            first_sentence = first_sentence_match.group(0).strip()
+            if len(first_sentence) <= 100:
+                return first_sentence
+            else:
+                # 97자로 자르고 "..." 추가
+                return first_sentence[:97] + "..."
+        else:
+            # 문장 구분자가 없으면 전체 텍스트에서 100자 제한
+            if len(description_ko) <= 100:
+                return description_ko
+            else:
+                return description_ko[:97] + "..."
+
     def map_to_event_data(self, release_info: ReleaseInfo) -> EventData:
         """ReleaseInfo를 EventData로 변환 (LLM 기반 레벨 분류)"""
         try:
@@ -89,6 +111,9 @@ class EventMapper:
                 series_info
             )
             logger.info(f"✅ description_ko 추론 완료: {description_ko[:50]}...")
+            
+            # description_ko 길이 제한 처리
+            description_ko = self._limit_description_ko_length(description_ko)
             return EventData(
                 release_id=release_info.release_id,
                 date=release_info.date,
