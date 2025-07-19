@@ -72,7 +72,6 @@ class CRUDUsers(CRUDBase[Users, UsersCreate, None]):
             db.commit()
         except Exception as e:
             db.rollback()
-            logger.error(f"경험치 커밋 중 오류 발생: {e}")
             raise
 
         db.refresh(user)

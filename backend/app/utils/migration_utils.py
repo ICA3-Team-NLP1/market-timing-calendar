@@ -15,6 +15,12 @@ def migrate_user_exp_to_current_config():
     기존 데이터는 보존하되, 새로운 필드는 0으로 초기화하고
     설정에서 제거된 필드는 삭제합니다.
     """
+    # DB 초기화
+    if db._session is None:
+        from app.core.config import settings
+        db.init_db(settings.DB_INFO)
+        db.startup()
+    
     session = next(db.session())
     
     try:
@@ -48,8 +54,8 @@ def migrate_user_exp_to_current_config():
         
         # 현재 설정 정보 출력
         print(f"\n📋 현재 설정:")
-        print(f"  - 경험치 필드: {list(LevelConfig.EXP_FIELDS.keys())}")
-        print(f"  - 레벨업 조건: {json.dumps({str(k): v for k, v in LevelConfig.LEVEL_UP_CONDITIONS.items()}, indent=2, ensure_ascii=False)}")
+        print(f"  - 경험치 필드: {list(LevelConfig.get_exp_fields().keys())}")
+        print(f"  - 레벨업 조건: {json.dumps({str(k): v for k, v in LevelConfig.get_level_up_conditions().items()}, indent=2, ensure_ascii=False)}")
         
     except Exception as e:
         session.rollback()
@@ -65,6 +71,12 @@ def reset_all_user_exp():
     
     주의: 이 함수는 모든 경험치 데이터를 삭제합니다!
     """
+    # DB 초기화
+    if db._session is None:
+        from app.core.config import settings
+        db.init_db(settings.DB_INFO)
+        db.startup()
+    
     session = next(db.session())
     
     try:
@@ -90,6 +102,12 @@ def validate_user_exp_data():
     """
     모든 사용자의 exp 데이터가 현재 설정과 일치하는지 검증합니다.
     """
+    # DB 초기화
+    if db._session is None:
+        from app.core.config import settings
+        db.init_db(settings.DB_INFO)
+        db.startup()
+    
     session = next(db.session())
 
     try:
@@ -127,16 +145,16 @@ def show_current_config():
     """현재 레벨 설정 정보를 출력합니다."""
     print("📋 현재 레벨 설정:")
     print(f"경험치 필드:")
-    for field_name, display_name in LevelConfig.EXP_FIELDS.items():
+    for field_name, display_name in LevelConfig.get_exp_fields().items():
         print(f"  - {field_name}: {display_name}")
 
     print(f"\n레벨업 조건:")
-    for level, config in LevelConfig.LEVEL_UP_CONDITIONS.items():
-        level_name = LevelConfig.LEVEL_NAMES.get(level, str(level))
-        target_level_name = LevelConfig.LEVEL_NAMES.get(config["target_level"], str(config["target_level"]))
+    for level, config in LevelConfig.get_level_up_conditions().items():
+        level_name = LevelConfig.get_level_names().get(level, str(level))
+        target_level_name = LevelConfig.get_level_names().get(config["target_level"], str(config["target_level"]))
         print(f"  - {level_name} → {target_level_name}:")
         for field, value in config["conditions"].items():
-            field_display = LevelConfig.EXP_FIELDS.get(field, field)
+            field_display = LevelConfig.get_exp_fields().get(field, field)
             print(f"    * {field_display}: {value}회")
 
 
