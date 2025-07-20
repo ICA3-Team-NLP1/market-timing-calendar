@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import uuid
+import logging
 from typing import List
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -10,16 +12,24 @@ from app.api.deps import get_or_create_user, get_session
 from app.models.users import Users
 from app.utils.llm_client import LLMClient
 from app.core.prompts import SYSTEM_PROMPTS, EVENT_EXPLAIN_PROMPTS
-from app.constants import UserLevel
+from app.constants import UserLevel, ChatMessageRole
 from app.crud.crud_events import crud_events
+from app.crud.crud_chat import crud_chat_sessions
 from app.schemas.chatbot import *
+from app.schemas.chat import *
 from app.services.filter_service import FilterService
+from app.services.mem0_service import mem0_service
+from app.services.mem0_client import mem0_client
+
+logger = logging.getLogger(__name__)
 
 
 chatbot_router = APIRouter()
 
 
-def _build_messages(level: UserLevel, history: List[ChatMessage], question: str) -> List[dict]:
+def _build_messages(
+    level: UserLevel, history: List[ChatMessage], question: str, memory_context: str = None
+) -> List[dict]:
     """대화 메시지 구성
 
     Args:
@@ -31,6 +41,8 @@ def _build_messages(level: UserLevel, history: List[ChatMessage], question: str)
         LLM에 전달할 메시지 리스트
     """
     system_prompt = SYSTEM_PROMPTS.get(level, SYSTEM_PROMPTS[UserLevel.BEGINNER])
+    if memory_context:
+        system_prompt += f"\n\n[이전 대화 기억]\n{memory_context}"
     messages = [{"role": "system", "content": system_prompt}]
     messages += [msg.dict() for msg in history]
     messages.append({"role": "user", "content": question})
@@ -41,7 +53,9 @@ def _build_messages(level: UserLevel, history: List[ChatMessage], question: str)
 async def conversation(
     req: ConversationRequest,
     use_filter: bool = Query(True, description="필터링 사용 여부"),
-    # db_user: Users = Depends(get_or_create_user),
+    is_mem0_api: bool = True,
+    db_user: Users = Depends(get_or_create_user),
+    session: Session = Depends(get_session),
 ):
     """대화 내역 기반 질문 처리
 
@@ -51,21 +65,85 @@ async def conversation(
     Args:
         req: 대화 요청 (대화 내역, 질문, 안전 수준)
         use_filter: 필터링 적용 여부 (기본값: True)
+        is_mem0_api: Mem0 API 사용 여부 (기본값: True)
         db_user: 현재 사용자 정보
+        session: DB session
     """
     try:
-        messages = _build_messages(UserLevel.BEGINNER, req.history, req.question)
+        # 세션 처리 (새 세션이면 생성, 기존 세션이면 조회)
+        user_uid = db_user.uid
+        user_level = db_user.level
+        if req.session_id:
+            chat_session = crud_chat_sessions.get(session=session, session_id=req.session_id)
+            if not chat_session:
+                raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
+        else:
+            # 새로운 세션 생성
+            chat_session = crud_chat_sessions.create(
+                session=session,
+                obj_in=ChatSessionCreate(
+                    user_id=db_user.id,
+                    session_id=str(uuid.uuid4()),
+                ),
+            )
+            session.commit()
+            req.session_id = chat_session.session_id
+
+        # mem0에서 관련 메모리 검색 (use_memory가 True인 경우)
+        mem0_provider = mem0_client if is_mem0_api else mem0_service
+        memory_context = None
+        if req.use_memory:
+            relevant_memories = await mem0_provider.search_relevant_memories(
+                user_id=db_user.uid, query=req.question, limit=3
+            )
+
+            if relevant_memories:
+                memory_context = mem0_provider.build_memory_context(relevant_memories)
+                logger.debug(f"🧠 관련 메모리 {len(relevant_memories)}개 발견")
+
         llm_client = LLMClient()
 
         async def stream():
-            if use_filter:
-                # 필터링 적용된 스트리밍
-                async for chunk in llm_client.stream_chat_with_filter(messages, safety_level=req.safety_level):
-                    yield chunk
-            else:
-                # 기존 방식 (필터링 없음)
-                async for chunk in llm_client.stream_chat(messages):
-                    yield chunk
+            full_response = ""
+            try:
+                messages = _build_messages(user_level, req.history, req.question, memory_context)
+                if use_filter:
+                    # 필터링 적용된 스트리밍
+                    async for chunk in llm_client.stream_chat_with_filter(messages, safety_level=req.safety_level):
+                        full_response += chunk
+                        yield chunk
+                else:
+                    # 기존 방식 (필터링 없음)
+                    async for chunk in llm_client.stream_chat(messages):
+                        full_response += chunk
+                        yield chunk
+
+                logger.debug(f"🎯 스트리밍 완료: {len(full_response)}글자")
+
+                # 세션 메시지 카운트 업데이트 (user + assistant = 2)
+                crud_chat_sessions.increment_message_count(session=session, session_id=req.session_id, count=2)
+
+                # mem0에 대화 내용 추가
+                if req.use_memory:
+                    # 사용자 메시지 추가
+                    messages = [
+                        {"role": ChatMessageRole.user, "content": req.question},
+                        {"role": ChatMessageRole.assistant, "content": full_response},
+                    ]
+                    await mem0_provider.add_conversation_message(
+                        user_id=user_uid, messages=messages, session_id=req.session_id
+                    )
+                    logger.debug("🧠 mem0에 대화 내용 저장 완료")
+
+                session.commit()
+
+                # 추가 메타데이터를 헤더로 전송
+                yield f"\n\n<!-- SESSION_ID: {req.session_id} -->"
+
+            except Exception as e:
+                logger.error(f"❌ 스트리밍 중 오류: {e}")
+                session.rollback()
+                yield f"\n\n죄송합니다. 응답 생성 중 오류가 발생했습니다."
 
         return StreamingResponse(stream(), media_type="text/plain")
 
@@ -187,3 +265,38 @@ async def get_filter_status(_: Users = Depends(get_or_create_user)):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail="필터 상태 조회 중 오류가 발생했습니다.")
+
+
+@chatbot_router.get("/memory/status", response_model=MemoryStatusResponse)
+async def get_memory_status(is_mem0_api: bool = True, db_user: Users = Depends(get_or_create_user)):
+    """사용자의 mem0 메모리 상태 조회"""
+    try:
+        mem0_provider = mem0_client if is_mem0_api else mem0_service
+        memories = await mem0_provider.get_user_memories(db_user.uid)
+
+        return MemoryStatusResponse(
+            user_id=db_user.uid, memory_count=len(memories), memories=memories[:10]  # 최근 10개만 표시
+        )
+
+    except Exception as e:
+        logger.error(f"❌ 메모리 상태 조회 실패: {e}")
+        raise HTTPException(status_code=500, detail="메모리 상태 조회 중 오류가 발생했습니다.")
+
+
+@chatbot_router.delete("/memory/reset", response_model=MemoryResetResponse)
+async def reset_user_memory(is_mem0_api: bool = True, db_user: Users = Depends(get_or_create_user)):
+    """사용자의 mem0 메모리 초기화 (개발/테스트용)"""
+    try:
+        mem0_provider = mem0_client if is_mem0_api else mem0_service
+        result = await mem0_provider.reset_user_memory(db_user.uid)
+
+        if result["success"]:
+            return MemoryResetResponse(success=True, message=result["message"])
+        else:
+            raise HTTPException(status_code=500, detail=result["error"])
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ 메모리 초기화 실패: {e}")
+        raise HTTPException(status_code=500, detail="메모리 초기화 중 오류가 발생했습니다.")

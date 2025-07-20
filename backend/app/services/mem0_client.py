@@ -57,7 +57,6 @@ class Mem0Client:
         Args:
             user_id: 사용자 ID
             query: 검색 쿼리
-            limit: 반환할 메모리 개수
 
         Returns:
             관련 메모리 리스트
