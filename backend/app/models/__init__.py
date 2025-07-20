@@ -10,6 +10,7 @@ from .events import Events, EventWebhook
 
 # 관계형 모델들을 마지막에 import (외래키 관계 있는 것들)
 from .users import UserEventSubscription, UserGoogleCalendar
+from .chat import ChatSessions
 
 __all__ = [
     "Base", 
@@ -19,5 +20,6 @@ __all__ = [
     "Events", 
     "EventWebhook", 
     "UserEventSubscription", 
-    "UserGoogleCalendar"
+    "UserGoogleCalendar",
+    "ChatSessions",
 ]
