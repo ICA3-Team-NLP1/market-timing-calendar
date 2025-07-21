@@ -25,9 +25,9 @@ class DBConnection(BaseModel):
 
 class LevelConfig:
     """레벨업 관련 설정 - JSON 파일 기반"""
-    
+
     _config_cache = None
-    
+
     @classmethod
     def _load_config(cls) -> Dict:
         """JSON 파일에서 레벨 설정을 로드합니다."""
@@ -35,43 +35,43 @@ class LevelConfig:
             config_path = path.join(path.dirname(__file__), "level_config.json")
             cls._config_cache = load_json_file(config_path)
         return cls._config_cache
-    
+
     @classmethod
     def get_exp_fields(cls) -> Dict[str, str]:
         """경험치 필드 딕셔너리 반환"""
         config = cls._load_config()
         return config.get("exp_fields", {})
-    
+
     @classmethod
     def get_level_up_conditions(cls) -> Dict:
         """레벨업 조건 딕셔너리 반환"""
         config = cls._load_config()
         return config.get("level_up_conditions", {})
-    
+
     @classmethod
     def get_level_names(cls) -> Dict[str, str]:
         """레벨별 한국어 이름 딕셔너리 반환"""
         config = cls._load_config()
         return config.get("level_names", {})
-    
+
     @classmethod
     def get_default_exp(cls) -> Dict[str, int]:
         """기본 경험치 딕셔너리 반환"""
         exp_fields = cls.get_exp_fields()
         return {field: 0 for field in exp_fields.keys()}
-    
+
     @classmethod
     def get_exp_field_names(cls) -> List[str]:
         """경험치 필드명 리스트 반환"""
         exp_fields = cls.get_exp_fields()
         return list(exp_fields.keys())
-    
+
     @classmethod
     def is_valid_exp_field(cls, field_name: str) -> bool:
         """유효한 경험치 필드인지 확인"""
         exp_fields = cls.get_exp_fields()
         return field_name in exp_fields
-    
+
     @classmethod
     def get_level_up_condition(cls, current_level: UserLevel) -> Dict:
         """현재 레벨의 레벨업 조건 반환"""
@@ -124,6 +124,22 @@ class Settings(BaseSettings):
     LANGFUSE_PUBLIC_KEY: str = ""
     LANGFUSE_SECRET_KEY: str = ""
     LANGFUSE_HOST: str = "https://us.cloud.langfuse.com"
+
+    # Mem0 설정
+    MEM0_RELEVANT_MEMORY_LIMIT: int = 10
+    # Mem0 플랫폼 API
+    MEM0_API_KEY: str = environ.get("MEM0_API_KEY", "")
+    # Mem0 OOS 설정
+    MEM0_LLM_MODEL: str = "gpt-4o-mini"  # 비용 효율적인 모델 사용
+    MEM0_TEMPERATURE: float = 0.2
+    MEM0_MAX_TOKENS: int = 1500
+    MEM0_VECTOR_STORE: dict = {
+        "provider": "chroma",
+        "config": {
+            "collection_name": "market_timing_chat_memory",
+            "path": "./mem0_db",  # 로컬 저장소 경로
+        },
+    }
 
     class Config:
         env_file = ".env"

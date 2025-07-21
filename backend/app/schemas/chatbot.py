@@ -18,6 +18,8 @@ class ConversationRequest(BaseModel):
     history: list[ChatMessage] = []  # 이전 대화 내역
     question: str  # 사용자의 새로운 질문
     safety_level: str | None = None  # 필터링 안전 수준 (선택사항)
+    session_id: str | None = None  # 세션 ID (새로운 대화면 None)
+    use_memory: bool = True  # mem0 메모리 사용 여부
 
 
 class EventExplainRequest(BaseModel):

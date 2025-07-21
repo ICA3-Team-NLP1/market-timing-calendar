@@ -26,7 +26,7 @@ class TestChatbotWithFilter:
         mock_llm_instance.stream_chat_with_filter = MagicMock()
         mock_llm_instance.stream_chat_with_filter.return_value.__aiter__.return_value = ["안전한 ", "경제 지표 ", "설명입니다."]
 
-        request_data = {"history": [], "question": "경제 지표에 대해 알려주세요", "safety_level": "strict"}
+        request_data = {"history": [], "question": "경제 지표에 대해 알려주세요", "safety_level": "strict", "use_memory": False}
 
         # When: API 호출 (필터링 활성화)
         response = client.post("/api/v1/chatbot/conversation?use_filter=true", json=request_data, headers=auth_headers)
@@ -53,7 +53,7 @@ class TestChatbotWithFilter:
         mock_llm_instance.stream_chat = MagicMock()
         mock_llm_instance.stream_chat.return_value.__aiter__.return_value = iter(["원본 ", "응답 ", "메시지입니다."])
 
-        request_data = {"history": [], "question": "경제 지표에 대해 알려주세요"}
+        request_data = {"history": [], "question": "경제 지표에 대해 알려주세요", "use_memory": False}
 
         # When: API 호출 (필터링 비활성화)
         response = client.post("/api/v1/chatbot/conversation?use_filter=false", json=request_data, headers=auth_headers)

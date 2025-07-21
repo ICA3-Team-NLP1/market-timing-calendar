@@ -7,6 +7,7 @@ class UserLevel(str, Enum):
     ADVANCED = "ADVANCED"
     UNCATEGORIZED = "UNCATEGORIZED"
 
+
 class ImpactLevel(str, Enum):
     HIGH = "HIGH"
     MEDIUM = "MEDIUM"
@@ -16,3 +17,8 @@ class ImpactLevel(str, Enum):
 class EventStatus(str, Enum):
     PENDING = "PENDING"
     ACTIVE = "ACTIVE"
+
+
+class ChatMessageRole(str, Enum):
+    user = "user"
+    assistant = "assistant"
