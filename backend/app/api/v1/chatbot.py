@@ -20,6 +20,8 @@ from app.schemas.chat import *
 from app.services.filter_service import FilterService
 from app.services.mem0_service import mem0_service
 from app.services.mem0_client import mem0_client
+from app.core.langfuse_factory import LangfuseFactory
+from app.utils.session import resolve_session_id
 
 logger = logging.getLogger(__name__)
 
@@ -81,17 +83,16 @@ async def conversation(
         # 세션 처리 (새 세션이면 생성, 기존 세션이면 조회)
         user_uid = db_user.uid
         user_level = db_user.level
-        if req.session_id:
-            chat_session = crud_chat_sessions.get(session=session, session_id=req.session_id)
-            if not chat_session:
-                raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다.")
-        else:
+        session_id = resolve_session_id(req.session_id)
+
+        chat_session = crud_chat_sessions.get(session=session, session_id=session_id)
+        if not chat_session:
             # 새로운 세션 생성
             chat_session = crud_chat_sessions.create(
                 session=session,
                 obj_in=ChatSessionCreate(
                     user_id=db_user.id,
-                    session_id=str(uuid.uuid4()),
+                    session_id=session_id,
                 ),
             )
             session.commit()
@@ -107,7 +108,8 @@ async def conversation(
                 memory_context = mem0_provider.build_memory_context(relevant_memories)
                 logger.debug(f"🧠 관련 메모리 {len(relevant_memories)}개 발견")
 
-        llm_client = LLMClient(user=db_user)
+        langfuse_manager = LangfuseFactory.create_app_manager(user=db_user, session_id=session_id)
+        llm_client = LLMClient(user=db_user, langfuse_manager=langfuse_manager)
 
         async def stream():
             full_response = ""
@@ -127,7 +129,7 @@ async def conversation(
                 logger.debug(f"🎯 스트리밍 완료: {len(full_response)}글자")
 
                 # 세션 메시지 카운트 업데이트 (user + assistant = 2)
-                crud_chat_sessions.increment_message_count(session=session, session_id=req.session_id, count=2)
+                crud_chat_sessions.increment_message_count(session=session, session_id=session_id, count=2)
 
                 # mem0에 대화 내용 추가
                 if req.use_memory:
@@ -137,14 +139,14 @@ async def conversation(
                         {"role": ChatMessageRole.assistant, "content": full_response},
                     ]
                     await mem0_provider.add_conversation_message(
-                        user_id=user_uid, messages=messages, session_id=req.session_id
+                        user_id=user_uid, messages=messages, session_id=session_id
                     )
                     logger.debug("🧠 mem0에 대화 내용 저장 완료")
 
                 session.commit()
 
                 # 추가 메타데이터를 헤더로 전송
-                yield f"\n\n<!-- SESSION_ID: {req.session_id} -->"
+                yield f"\n\n<!-- SESSION_ID: {session_id} -->"
 
             except Exception as e:
                 logger.error(f"❌ 스트리밍 중 오류: {e}")
@@ -177,6 +179,9 @@ async def explain_event(
         db: 데이터베이스 세션
     """
     try:
+        # session_id 처리 (conversation과 동일하게)
+        session_id = resolve_session_id(getattr(req, "session_id", None))
+
         # id로 이벤트 조회
         event = crud_events.get(db, id=req.id)
         if not event:
@@ -199,7 +204,8 @@ async def explain_event(
             {"role": "user", "content": event_context},
         ]
 
-        llm_client = LLMClient(user=db_user)
+        langfuse_manager = LangfuseFactory.create_app_manager(user=db_user, session_id=session_id)
+        llm_client = LLMClient(user=db_user, langfuse_manager=langfuse_manager)
 
         async def stream():
             if use_filter:
