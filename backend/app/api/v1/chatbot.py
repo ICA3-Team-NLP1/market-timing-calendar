@@ -93,9 +93,7 @@ async def conversation(
         mem0_provider = mem0_client if is_mem0_api else mem0_service
         memory_context = None
         if req.use_memory:
-            relevant_memories = await mem0_provider.search_relevant_memories(
-                user_id=db_user.uid, query=req.question, limit=3
-            )
+            relevant_memories = await mem0_provider.search_relevant_memories(user_id=db_user.uid, query=req.question)
 
             if relevant_memories:
                 memory_context = mem0_provider.build_memory_context(relevant_memories)

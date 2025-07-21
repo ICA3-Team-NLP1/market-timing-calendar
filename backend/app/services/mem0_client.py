@@ -21,7 +21,7 @@ class Mem0Client:
             self.memory = None
 
     async def add_conversation_message(
-        self, user_id: str, messages: list[str], session_id: str | None
+        self, user_id: str, messages: list[dict], session_id: str | None
     ) -> dict[str, Any]:
         """
         대화 메시지를 mem0에 추가

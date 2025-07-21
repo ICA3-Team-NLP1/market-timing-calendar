@@ -83,3 +83,15 @@ CREATE TABLE event_webhook (
 CREATE INDEX idx_event_date ON events(date);
 CREATE INDEX idx_user_event_subscription_user_id ON user_event_subscription(user_id);
 CREATE INDEX idx_user_event_subscription_event_id ON user_event_subscription(event_id);
+
+
+-- 대화 세션 관리용 테이블
+CREATE TABLE chat_sessions (
+    id SERIAL PRIMARY KEY,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    dropped_at TIMESTAMP NULL,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    session_id VARCHAR(50) UNIQUE NOT NULL,
+    message_count INTEGER DEFAULT 0
+);
