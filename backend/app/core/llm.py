@@ -34,11 +34,7 @@ class LangfuseManager:
     def __init__(self, service_name: str = "llm", user_id: Optional[str] = None, session_id: Optional[str] = None):
         self.service_name = service_name
         self.user_id = user_id
-        # Background에서 Celery task_id 자동 감지
-        if session_id is None and service_name == "background_etl":
-            self.session_id = self._get_celery_task_id()
-        else:
-            self.session_id = session_id or str(uuid.uuid4())
+        self.session_id = session_id  # 생성하지 않고, 반드시 외부에서 받아야 함
         self.handler: Optional[CallbackHandler] = None
         self._initialize_handler()
     
@@ -95,7 +91,7 @@ class LangfuseManager:
         return LangfuseManager(
             service_name="backend_chatbot",
             user_id=user_id,
-            session_id=session_id
+            session_id=session_id  # 반드시 외부에서 받아야 함
         )
     
     @staticmethod
@@ -111,7 +107,7 @@ class LangfuseManager:
         return LangfuseManager(
             service_name="background_etl",
             user_id="background-module",
-            session_id=None  # Celery task_id 자동 감지
+            session_id=None  # 반드시 외부에서 받아야 함
         )
     
     def _initialize_handler(self) -> None:

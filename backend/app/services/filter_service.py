@@ -9,13 +9,14 @@ from app.core.filter_logger import filter_logger_instance, log_filter_performanc
 class FilterService:
     """컨텐츠 필터링 서비스 - 비즈니스 로직 래퍼"""
 
-    def __init__(self, user=None):
+    def __init__(self, user=None, langfuse_manager=None):
         self.user = user
-        self.filter = ContentFilter(user=user)
+        self.langfuse_manager = langfuse_manager
+        self.filter = ContentFilter(user=user, langfuse_manager=langfuse_manager)
         self.enabled = settings.FILTER_ENABLED
         self.filter_logger = filter_logger_instance
 
-        logger.info(f"FilterService 초기화: enabled={self.enabled}, level={settings.FILTER_SAFETY_LEVEL}, user={user}")
+        logger.info(f"FilterService 초기화: enabled={self.enabled}, level={settings.FILTER_SAFETY_LEVEL}, user={user}, langfuse_manager={langfuse_manager}")
 
     @log_filter_performance
     async def filter_response(self, content: str, safety_level: str = None, user_id: int = None) -> Dict[str, Any]:

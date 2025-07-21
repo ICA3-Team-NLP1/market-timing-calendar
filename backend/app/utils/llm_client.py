@@ -38,8 +38,7 @@ class LLMClient:
         """FilterService 지연 로드"""
         if self._filter_service is None:
             from app.services.filter_service import FilterService
-
-            self._filter_service = FilterService(user=self.user)
+            self._filter_service = FilterService(user=self.user, langfuse_manager=self.langfuse_manager)
         return self._filter_service
 
     def _create_chain(self, messages: List[Dict[str, str]]):

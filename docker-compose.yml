@@ -33,6 +33,9 @@ services:
       - LANGFUSE_SECRET_KEY=${LANGFUSE_SECRET_KEY:-}
       - LANGFUSE_HOST=${LANGFUSE_HOST:-https://us.cloud.langfuse.com}
 
+      # Mem0 히스토리 저장소 설정
+      - MEM0_API_KEY=${MEM0_API_KEY:-}
+
       # 컨텐츠 필터링 설정
       - FILTER_ENABLED=${FILTER_ENABLED:-true}
       - FILTER_SAFETY_LEVEL=${FILTER_SAFETY_LEVEL:-strict}
