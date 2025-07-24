@@ -1,6 +1,6 @@
 import React from "react";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
-import { Level3Gem } from "@/components/icons/Level3Gem";
+import { Level3Gem_LevelUp } from "@/components/icons/Level3Gem_LevelUp";
 
 interface LevelUpModalProps {
   isOpen: boolean;
@@ -15,7 +15,7 @@ export const LevelUpModal = ({ isOpen, onClose }: LevelUpModalProps): JSX.Elemen
         <DialogDescription className="sr-only">You have reached level 3! Your insights and interpretations are now richer.</DialogDescription>
         <div className="absolute w-[220px] h-[219px] top-[53px] left-[65px]">
           <div className="absolute w-[134px] h-[136px] top-0 left-[41px]">
-            <Level3Gem />
+            <Level3Gem_LevelUp />
           </div>
           <div className="absolute top-[148px] left-[23px] [font-family:'Pretendard-Bold',Helvetica] font-bold text-[#1a1a1a] text-[32px] tracking-[0] leading-[normal] whitespace-nowrap">
             LEVEL UP !

@@ -1,14 +1,63 @@
 import { ChevronLeftIcon, ChevronRightIcon, InfoIcon } from "lucide-react";
-import React from "react";
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useLocation } from "wouter";
 import { Level2GemLarge } from "@/components/icons/Level2GemLarge";
+import { signOut } from 'firebase/auth';
+import { auth } from '../firebase';
+import { deleteUser } from '../utils/api';
 
 export const ProfilePage = (): JSX.Element => {
   const [, setLocation] = useLocation();
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  // 로그아웃 함수
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+      window._replit = false; // 더미 모드 비활성화
+      localStorage.removeItem('dummyUser'); // 더미 사용자 정보 제거
+      console.log('✅ 로그아웃 성공');
+      setLocation("/login");
+    } catch (error) {
+      console.error('로그아웃 실패:', error);
+      setError('로그아웃 중 오류가 발생했습니다.');
+    }
+  };
+
+  // 회원 탈퇴 함수
+  const handleDeleteAccount = async () => {
+    if (!window.confirm('정말로 계정을 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) {
+      return;
+    }
+
+    setDeleteLoading(true);
+    setError('');
+
+    try {
+      console.log('🗑️ 계정 삭제 시작...');
+      const result = await deleteUser();
+
+      console.log('✅ 계정 삭제 성공:', result);
+
+      // Firebase에서도 로그아웃
+      await signOut(auth);
+      window._replit = false;
+      localStorage.removeItem('dummyUser');
+
+      alert('계정이 성공적으로 삭제되었습니다.');
+      setLocation("/login");
+    } catch (error) {
+      console.error('❌ 계정 삭제 실패:', error);
+      setError(`계정 삭제 실패: ${error.message}`);
+    } finally {
+      setDeleteLoading(false);
+    }
+  };
 
   // Menu items data for the list
   const menuItems = [
@@ -120,16 +169,36 @@ export const ProfilePage = (): JSX.Element => {
           </CardContent>
         </Card>
 
-        {/* Logout button */}
-        <Button
-          variant="secondary"
-          className="absolute top-[774px] left-[149px] bg-[#f1f3f7] rounded-[100px] px-4 py-2.5 h-auto"
-          onClick={() => setLocation("/login")}
-        >
-          <span className="[font-family:'Pretendard-SemiBold',Helvetica] font-semibold text-[#444445] text-lg">
-            로그아웃
-          </span>
-        </Button>
+        {/* Error message */}
+        {error && (
+          <div className="absolute top-[720px] left-6 w-[345px] p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {error}
+          </div>
+        )}
+
+        {/* Logout and Delete Account buttons */}
+        <div className="absolute top-[760px] left-6 w-[345px] flex flex-col gap-3">
+          <Button
+            variant="secondary"
+            className="bg-[#f1f3f7] rounded-[100px] px-4 py-2.5 h-auto"
+            onClick={handleLogout}
+          >
+            <span className="[font-family:'Pretendard-SemiBold',Helvetica] font-semibold text-[#444445] text-lg">
+              로그아웃
+            </span>
+          </Button>
+          
+          <Button
+            variant="destructive"
+            className="rounded-[100px] px-4 py-2.5 h-auto"
+            onClick={handleDeleteAccount}
+            disabled={deleteLoading}
+          >
+            <span className="[font-family:'Pretendard-SemiBold',Helvetica] font-semibold text-white text-lg">
+              {deleteLoading ? '🗑️ 삭제 중...' : '🗑️ 회원 탈퇴'}
+            </span>
+          </Button>
+        </div>
       </div>
 
       {/* Header */}
