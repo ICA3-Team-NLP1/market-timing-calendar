@@ -5,7 +5,7 @@ from langgraph.graph import StateGraph, START, END
 from app.utils.llm_client import LLMClient
 from app.constants import UserLevel
 from app.core.prompts import SYSTEM_PROMPTS, SEARCH_DECISION_PROMPT
-from app.services.simple_search import search_web
+from app.services.simple_search import search_web_with_agent
 
 # Langfuse observe 데코레이터 임포트
 try:
@@ -83,7 +83,7 @@ class BaseLevelChain:
             logger.info("웹 검색 실행")
             state["processing_step"] = "web_search"
 
-            search_results = await search_web(state["user_query"])
+            search_results = await search_web_with_agent(state["user_query"])
             state["search_results"] = search_results
             state["tools_used"].append("web_search")
 

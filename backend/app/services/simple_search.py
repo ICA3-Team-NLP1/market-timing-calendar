@@ -4,6 +4,10 @@ SerpAPI를 활용한 웹 검색 기능
 import logging
 import httpx
 from app.core.config import settings
+from langchain_openai import ChatOpenAI
+from langchain_community.agent_toolkits.load_tools import load_tools
+from langgraph.prebuilt import create_react_agent
+from langchain_core.messages import HumanMessage
 
 logger = logging.getLogger(__name__)
 
@@ -84,3 +88,24 @@ def _parse_serpapi_results(data: dict, query: str) -> str:
     except Exception as e:
         logger.error(f"❌ SerpAPI 결과 파싱 오류: {e}")
         return f"'{query}' 검색 결과 처리 중 오류가 발생했습니다."
+
+
+async def search_web_with_agent(query: str) -> str:
+    # langchain_openai.ChatOpenAI 사용
+    try:
+        llm = ChatOpenAI(model=settings.ACTIVE_LLM_MODEL, temperature=0)
+
+        tools = load_tools(["serpapi"], llm=llm)
+        agent_executor = create_react_agent(
+            model=llm,
+            tools=tools,
+        )
+
+        result = agent_executor.invoke({"messages": [HumanMessage(content=query)]})
+
+        final_message = result["messages"][-1]
+        return final_message.content
+
+    except Exception as e:
+        logger.error(f"❌ Agent 검색 실패: {e}")
+        return f"'{query}' Agent 검색 중 오류가 발생했습니다."
