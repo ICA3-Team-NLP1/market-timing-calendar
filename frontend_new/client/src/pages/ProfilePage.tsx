@@ -1,19 +1,40 @@
 import { ChevronLeftIcon, ChevronRightIcon, InfoIcon } from "lucide-react";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import { useLocation } from "wouter";
+import { Level1GemLarge } from "@/components/icons/Level1GemLarge";
 import { Level2GemLarge } from "@/components/icons/Level2GemLarge";
+import { Level3GemLarge } from "@/components/icons/Level3GemLarge";
 import { signOut } from 'firebase/auth';
 import { auth } from '../firebase';
-import { deleteUser } from '../utils/api';
+import { deleteUser, getUserLevelInfo } from '../utils/api';
 
 export const ProfilePage = (): JSX.Element => {
   const [, setLocation] = useLocation();
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [error, setError] = useState('');
+  const [userLevelInfo, setUserLevelInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // 사용자 레벨 정보 로드
+  useEffect(() => {
+    const loadUserLevelInfo = async () => {
+      try {
+        const levelInfo = await getUserLevelInfo();
+        setUserLevelInfo(levelInfo);
+      } catch (error) {
+        console.error('사용자 레벨 정보 로드 실패:', error);
+        setError('사용자 정보를 불러오는데 실패했습니다.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadUserLevelInfo();
+  }, []);
 
   // 로그아웃 함수
   const handleLogout = async () => {
@@ -59,6 +80,38 @@ export const ProfilePage = (): JSX.Element => {
     }
   };
 
+  // 레벨에 따른 보석 아이콘 렌더링
+  const renderLevelGem = () => {
+    if (!userLevelInfo) return <Level2GemLarge />;
+    
+    switch (userLevelInfo.current_level) {
+      case "BEGINNER":
+        return <Level1GemLarge />;
+      case "INTERMEDIATE":
+        return <Level2GemLarge />;
+      case "ADVANCED":
+        return <Level3GemLarge />;
+      default:
+        return <Level2GemLarge />;
+    }
+  };
+
+  // 레벨에 따른 표시명 반환
+  const getLevelDisplayName = () => {
+    if (!userLevelInfo) return "관심러";
+    
+    switch (userLevelInfo.current_level) {
+      case "BEGINNER":
+        return "주린이";
+      case "INTERMEDIATE":
+        return "관심러";
+      case "ADVANCED":
+        return "전문가";
+      default:
+        return "관심러";
+    }
+  };
+
   // Menu items data for the list
   const menuItems = [
     { icon: "💬", text: "챗봇 대화", onClick: () => setLocation("/main") },
@@ -66,12 +119,34 @@ export const ProfilePage = (): JSX.Element => {
     { icon: "📅", text: "증권 캘린더", onClick: () => setLocation("/calendar") },
   ];
 
-  // Progress bar data
-  const progressItems = [
-    { label: "서비스 방문", value: 62 },
-    { label: "챗봇 대화", value: 53 },
-    { label: "일정 조회", value: 70 },
-  ];
+  // Progress bar data from API
+  const getProgressItems = () => {
+    if (!userLevelInfo || !userLevelInfo.exp_field_info) {
+      return [
+        { label: "서비스 방문", value: 0 },
+        { label: "챗봇 대화", value: 0 },
+        { label: "일정 조회", value: 0 },
+      ];
+    }
+
+    return Object.values(userLevelInfo.exp_field_info).map(fieldInfo => ({
+      label: fieldInfo.display_name,
+      value: fieldInfo.required_for_next_level > 0 
+        ? Math.round((fieldInfo.current_value / fieldInfo.required_for_next_level) * 100)
+        : 0
+    }));
+  };
+
+  // 로딩 중일 때 표시
+  if (loading) {
+    return (
+      <div className="relative w-full max-w-[393px] min-h-screen bg-white mx-auto flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-lg">로딩 중...</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full max-w-[393px] min-h-screen bg-white mx-auto">
@@ -124,17 +199,17 @@ export const ProfilePage = (): JSX.Element => {
             <div className="absolute w-[100px] h-[124px] top-[13px] left-[123px]">
               <div className="relative h-[123px]">
                 <div className="absolute w-[100px] h-[100px] top-0 left-0 flex items-center justify-center">
-                  <Level2GemLarge />
+                  {renderLevelGem()}
                 </div>
                 <div className="absolute top-[99px] left-6 [font-family:'Pretendard-Bold',Helvetica] font-bold text-[#1a1a1a] text-xl tracking-[0] leading-[normal] whitespace-nowrap">
-                  관심러
+                  {getLevelDisplayName()}
                 </div>
               </div>
             </div>
 
             {/* Progress bars */}
             <div className="flex flex-col w-[301px] items-start gap-3 absolute top-[151px] left-[22px]">
-              {progressItems.map((item, index) => (
+              {getProgressItems().map((item, index) => (
                 <div
                   key={`progress-${index}`}
                   className="flex items-center gap-2.5 relative self-stretch w-full flex-[0_0_auto]"
