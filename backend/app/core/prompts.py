@@ -205,4 +205,12 @@ def get_prompt_info(level: UserLevel, purpose: Literal["general", "event_explana
         "rules": get_rule_prompt(level, purpose),
         "restrictions": get_style_and_restrictions(level),
         "full_prompt": build_prompt(level, purpose)
-    } 
+    }
+
+SEARCH_DECISION_PROMPT = """당신은 AI 투자 교육 서비스 '캐피(Capi)'입니다.
+아래 질문에 답하려면 인터넷 검색이 필요한지 판단하세요.
+
+질문: {user_query}
+
+- 필요하면: YES
+- 불필요하면: NO"""

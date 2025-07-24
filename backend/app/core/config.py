@@ -141,6 +141,10 @@ class Settings(BaseSettings):
         },
     }
 
+    # SerpAPI 설정
+    SERPAPI_API_KEY: str = environ.get("SERPAPI_API_KEY", "")
+    SERPAPI_BASE_URL: str = "https://serpapi.com/search"
+
     class Config:
         env_file = ".env"
         extra = "allow"  # 추가 필드 허용
