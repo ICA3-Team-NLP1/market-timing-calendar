@@ -3,17 +3,26 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 
-// Firebase 설정 (환경변수에서 가져오기)
-const firebaseConfig = {
-    apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyCaYBhQEGujz-oj-j2mvaSNHFlVnzrGztA",
-    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "market-timing-calendar.firebaseapp.com",
-    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "market-timing-calendar",
-    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "market-timing-calendar.firebasestorage.app",
-    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "539122761808",
-    appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:539122761808:web:016249bad69b51190d1155",
-    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID || "G-5LPG8SK2EK"
-};
+// Validate required environment variables
+if (!import.meta.env.VITE_FIREBASE_API_KEY || 
+    !import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || 
+    !import.meta.env.VITE_FIREBASE_PROJECT_ID || 
+    !import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || 
+    !import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || 
+    !import.meta.env.VITE_FIREBASE_APP_ID || 
+    !import.meta.env.VITE_FIREBASE_MEASUREMENT_ID) {
+    throw new Error("Missing required Firebase environment variables. Please check your .env file.");
+}
 
+const firebaseConfig = {
+    apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+    authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+    projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+    storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+    appId: import.meta.env.VITE_FIREBASE_APP_ID,
+    measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+};
 // Firebase 초기화
 const app = initializeApp(firebaseConfig);
 
