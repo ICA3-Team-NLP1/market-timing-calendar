@@ -25,30 +25,33 @@ const dummyData = {
 
     // 사용자 레벨 정보
     userLevelInfo: {
-        current_level: "INTERMEDIATE",
-        level_display_name: "관심러",
-        exp_fields: [
-            {
-                field_name: "service_visits",
-                display_name: "서비스 방문",
-                current_value: 15,
-                required_for_next_level: 30,
-            },
-            {
-                field_name: "chatbot_conversations",
-                display_name: "챗봇 대화",
-                current_value: 12,
-                required_for_next_level: 20,
-            },
-            {
-                field_name: "calendar_views",
-                display_name: "일정 조회",
-                current_value: 25,
-                required_for_next_level: 40,
-            },
-        ],
+        current_level: "BEGINNER",
+        level_display_name: "주린이",
+        exp: {
+            calendar_views: 1,
+            service_visits: 1,
+            chatbot_conversations: 1,
+        },
+        next_level: null,
+        next_level_conditions: {},
         can_level_up: false,
-        next_level: "ADVANCED",
+        exp_field_info: {
+            service_visits: {
+                display_name: "서비스 방문",
+                current_value: 1,
+                required_for_next_level: 10,
+            },
+            chatbot_conversations: {
+                display_name: "챗봇 대화",
+                current_value: 1,
+                required_for_next_level: 8,
+            },
+            calendar_views: {
+                display_name: "일정 조회",
+                current_value: 1,
+                required_for_next_level: 15,
+            },
+        },
     },
 
     // 레벨 업데이트 응답
@@ -466,7 +469,7 @@ export const getCalendarEvents = async (
 ) => {
     if (window._replit) {
         // 더미 모드에서는 날짜 범위에 맞는 이벤트만 필터링해서 리턴
-        const filteredEvents = dummyData.calendarEvents.filter(event => {
+        const filteredEvents = dummyData.calendarEvents.filter((event) => {
             const eventDate = event.date;
             return eventDate >= startDate && eventDate <= endDate;
         });
@@ -479,7 +482,9 @@ export const getCalendarEvents = async (
     //if (userLevel) {
     //    params.append("user_level", userLevel);
     //}
-    return await apiCall(`${API_BASE_URL}/api/v1/calendar/events/by-level?${params}`);
+    return await apiCall(
+        `${API_BASE_URL}/api/v1/calendar/events/by-level?${params}`,
+    );
 };
 
 // 🔧 이벤트 구독 생성 (일정 저장)

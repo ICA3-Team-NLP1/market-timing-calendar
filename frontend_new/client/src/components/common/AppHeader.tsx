@@ -1,9 +1,12 @@
 import { ChevronLeftIcon } from "lucide-react";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { Level1Gem } from "@/components/icons/Level1Gem";
 import { Level2Gem } from "@/components/icons/Level2Gem";
+import { Level3Gem } from "@/components/icons/Level3Gem";
 import { LevelUpModal } from "@/components/modals/LevelUpModal";
 import { useLocation } from "wouter";
+import { getCurrentUser } from "@/utils/api";
 
 interface AppHeaderProps {
   showBackButton?: boolean;
@@ -12,7 +15,41 @@ interface AppHeaderProps {
 
 export const AppHeader = ({ showBackButton = false, onBackClick }: AppHeaderProps): JSX.Element => {
   const [isLevelUpModalOpen, setIsLevelUpModalOpen] = useState(false);
+  const [userLevel, setUserLevel] = useState("INTERMEDIATE"); // 기본값
+  const [levelDisplayName, setLevelDisplayName] = useState("관심러"); // 기본값
   const [, setLocation] = useLocation();
+
+  // 사용자 레벨 정보 로드
+  useEffect(() => {
+    const loadUserLevel = async () => {
+      try {
+        const user = await getCurrentUser();
+        setUserLevel(user.level);
+        
+        // 레벨에 따른 표시명 설정
+        switch (user.level) {
+          case "BEGINNER":
+            setLevelDisplayName("주린이");
+            break;
+          case "INTERMEDIATE":
+            setLevelDisplayName("관심러");
+            break;
+          case "ADVANCED":
+            setLevelDisplayName("전문가");
+            break;
+          default:
+            setLevelDisplayName("관심러");
+        }
+      } catch (error) {
+        console.error('사용자 레벨 로드 실패:', error);
+        // 에러 시 기본값 유지
+        setUserLevel("INTERMEDIATE");
+        setLevelDisplayName("관심러");
+      }
+    };
+
+    loadUserLevel();
+  }, []);
 
   const handleCaffyClick = () => {
     setIsLevelUpModalOpen(true);
@@ -20,6 +57,20 @@ export const AppHeader = ({ showBackButton = false, onBackClick }: AppHeaderProp
 
   const handleInterestClick = () => {
     setLocation("/profile");
+  };
+
+  // 레벨에 따른 보석 아이콘 렌더링
+  const renderLevelGem = () => {
+    switch (userLevel) {
+      case "BEGINNER":
+        return <Level1Gem />;
+      case "INTERMEDIATE":
+        return <Level2Gem />;
+      case "ADVANCED":
+        return <Level3Gem />;
+      default:
+        return <Level2Gem />;
+    }
   };
 
   return (
@@ -52,10 +103,10 @@ export const AppHeader = ({ showBackButton = false, onBackClick }: AppHeaderProp
         onClick={handleInterestClick}
       >
         <div className="absolute w-6 h-6 top-[3px] left-0">
-          <Level2Gem />
+          {renderLevelGem()}
         </div>
         <div className="absolute top-1 left-7 text-black text-sm leading-[normal] [font-family:'Pretendard-Regular',Helvetica] font-normal tracking-[0] whitespace-nowrap">
-          관심러
+          {levelDisplayName}
         </div>
       </button>
     </header>
