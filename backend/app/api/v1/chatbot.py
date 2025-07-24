@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import uuid
 import logging
 from typing import List
 
@@ -22,12 +21,14 @@ from app.services.mem0_service import mem0_service
 from app.services.mem0_client import mem0_client
 from app.core.langfuse_factory import LangfuseFactory
 from app.utils.session import resolve_session_id
+from app.services.level_chain import LevelChainService
 
 logger = logging.getLogger(__name__)
 
 # Langfuse observe 데코레이터 임포트
 try:
     from langfuse import observe
+
     LANGFUSE_OBSERVE_AVAILABLE = True
 except ImportError:
     LANGFUSE_OBSERVE_AVAILABLE = False
@@ -58,24 +59,28 @@ def _build_messages(
     return messages
 
 
-@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+@ observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/conversation")
 async def conversation(
     req: ConversationRequest,
     use_filter: bool = Query(True, description="필터링 사용 여부"),
+    use_level_chain: bool = Query(True, description="레벨별 체인 사용 여부"),
     is_mem0_api: bool = True,
+    chunk_size: int = Query(50, description="응답 Chunk Size"),
     db_user: Users = Depends(get_or_create_user),
     session: Session = Depends(get_session),
 ):
     """대화 내역 기반 질문 처리
 
     사용자의 이전 대화 내역을 바탕으로 연속적인 질문에 대해 스트리밍 응답을 제공합니다.
-    사용자 레벨에 따라 적절한 시스템 프롬프트를 사용하며, 컨텐츠 필터링을 적용합니다.
+    레벨별 LLM 체인(LangGraph)을 통해 사용자 레벨에 따른 차별화된 응답을 생성합니다.
 
     Args:
         req: 대화 요청 (대화 내역, 질문, 안전 수준)
         use_filter: 필터링 적용 여부 (기본값: True)
+        use_level_chain: 레벨별 체인 사용 여부 (기본값: True)
         is_mem0_api: Mem0 API 사용 여부 (기본값: True)
+        chunk_size: 응답 Chunk Size
         db_user: 현재 사용자 정보
         session: DB session
     """
@@ -109,22 +114,47 @@ async def conversation(
                 logger.debug(f"🧠 관련 메모리 {len(relevant_memories)}개 발견")
 
         langfuse_manager = LangfuseFactory.create_app_manager(user=db_user, session_id=session_id)
-        llm_client = LLMClient(user=db_user, langfuse_manager=langfuse_manager)
 
         async def stream():
             full_response = ""
             try:
-                messages = _build_messages(user_level, req.history, req.question, memory_context)
-                if use_filter:
-                    # 필터링 적용된 스트리밍
-                    async for chunk in llm_client.stream_chat_with_filter(messages, safety_level=req.safety_level):
-                        full_response += chunk
+                # 레벨별 체인 사용 여부에 따른 분기
+                if use_level_chain:
+                    level_chain_service = LevelChainService(user=db_user, langfuse_manager=langfuse_manager)
+                    final_response = await level_chain_service.run(
+                        user_level=user_level,
+                        user_query=req.question,
+                        conversation_history=[msg.dict() for msg in req.history],
+                        memory_context=memory_context,
+                    )
+
+                    # 필터링 적용
+                    if use_filter:
+                        filter_service = FilterService(user=db_user, langfuse_manager=langfuse_manager)
+                        filter_result = await filter_service.filter_response(final_response, req.safety_level)
+                        final_response = filter_result["content"]
+
+                    full_response = final_response
+
+                    # 스트리밍으로 응답 전송 (청크 단위)
+                    for i in range(0, len(final_response), chunk_size):
+                        chunk = final_response[i : i + chunk_size]
                         yield chunk
+
                 else:
-                    # 기존 방식 (필터링 없음)
-                    async for chunk in llm_client.stream_chat(messages):
-                        full_response += chunk
-                        yield chunk
+                    # 기존 방식
+                    llm_client = LLMClient(user=db_user, langfuse_manager=langfuse_manager)
+                    messages = _build_messages(user_level, req.history, req.question, memory_context)
+                    if use_filter:
+                        async for chunk in llm_client.stream_chat_with_filter(
+                            messages, safety_level=req.safety_level, chunk_size=chunk_size
+                        ):
+                            full_response += chunk
+                            yield chunk
+                    else:
+                        async for chunk in llm_client.stream_chat(messages):
+                            full_response += chunk
+                            yield chunk
 
                 logger.debug(f"🎯 스트리밍 완료: {len(full_response)}글자")
 
@@ -159,7 +189,7 @@ async def conversation(
         raise HTTPException(status_code=500, detail="대화 처리 중 오류가 발생했습니다.")
 
 
-@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+@ observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/event/explain")
 async def explain_event(
     req: EventExplainRequest,
@@ -225,7 +255,7 @@ async def explain_event(
         raise HTTPException(status_code=500, detail="이벤트 설명 처리 중 오류가 발생했습니다.")
 
 
-@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+@ observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/safety/check")
 async def check_content_safety(req: SafetyCheckRequest, db_user: Users = Depends(get_or_create_user)):
     """컨텐츠 안전성 검사
