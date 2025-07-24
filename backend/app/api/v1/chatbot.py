@@ -59,7 +59,7 @@ def _build_messages(
     return messages
 
 
-@ observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/conversation")
 async def conversation(
     req: ConversationRequest,
@@ -189,7 +189,7 @@ async def conversation(
         raise HTTPException(status_code=500, detail="대화 처리 중 오류가 발생했습니다.")
 
 
-@ observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/event/explain")
 async def explain_event(
     req: EventExplainRequest,
@@ -255,7 +255,7 @@ async def explain_event(
         raise HTTPException(status_code=500, detail="이벤트 설명 처리 중 오류가 발생했습니다.")
 
 
-@ observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/safety/check")
 async def check_content_safety(req: SafetyCheckRequest, db_user: Users = Depends(get_or_create_user)):
     """컨텐츠 안전성 검사

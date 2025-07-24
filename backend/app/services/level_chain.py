@@ -106,7 +106,7 @@ class BaseLevelChain:
         else:
             return "response"
 
-    @ observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+    @observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
     async def process(
         self,
         user_level: UserLevel,
@@ -328,7 +328,7 @@ class LevelChainService:
         else:
             raise NotImplementedError
 
-    @ observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+    @observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
     async def run(
         self,
         user_level: UserLevel,
