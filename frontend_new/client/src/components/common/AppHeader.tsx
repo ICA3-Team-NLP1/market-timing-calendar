@@ -7,6 +7,7 @@ import { Level3Gem } from "@/components/icons/Level3Gem";
 import { LevelUpModal } from "@/components/modals/LevelUpModal";
 import { useLocation } from "wouter";
 import { getCurrentUser } from "@/utils/api";
+import { DEFAULT_USER_LEVEL, DEFAULT_LEVEL_DISPLAY_NAME, LEVEL_DISPLAY_NAMES } from "@/constants/userLevels";
 
 interface AppHeaderProps {
   showBackButton?: boolean;
@@ -15,8 +16,8 @@ interface AppHeaderProps {
 
 export const AppHeader = ({ showBackButton = false, onBackClick }: AppHeaderProps): JSX.Element => {
   const [isLevelUpModalOpen, setIsLevelUpModalOpen] = useState(false);
-  const [userLevel, setUserLevel] = useState("INTERMEDIATE"); // 기본값
-  const [levelDisplayName, setLevelDisplayName] = useState("관심러"); // 기본값
+  const [userLevel, setUserLevel] = useState(DEFAULT_USER_LEVEL); // 기본값
+  const [levelDisplayName, setLevelDisplayName] = useState(DEFAULT_LEVEL_DISPLAY_NAME); // 기본값
   const [, setLocation] = useLocation();
 
   // 사용자 레벨 정보 로드
@@ -26,25 +27,13 @@ export const AppHeader = ({ showBackButton = false, onBackClick }: AppHeaderProp
         const user = await getCurrentUser();
         setUserLevel(user.level);
         
-        // 레벨에 따른 표시명 설정
-        switch (user.level) {
-          case "BEGINNER":
-            setLevelDisplayName("주린이");
-            break;
-          case "INTERMEDIATE":
-            setLevelDisplayName("관심러");
-            break;
-          case "ADVANCED":
-            setLevelDisplayName("전문가");
-            break;
-          default:
-            setLevelDisplayName("관심러");
-        }
+        const displayName = LEVEL_DISPLAY_NAMES[user.level as keyof typeof LEVEL_DISPLAY_NAMES] || LEVEL_DISPLAY_NAMES.INTERMEDIATE;
+        setLevelDisplayName(displayName);
       } catch (error) {
         console.error('사용자 레벨 로드 실패:', error);
         // 에러 시 기본값 유지
-        setUserLevel("INTERMEDIATE");
-        setLevelDisplayName("관심러");
+        setUserLevel(DEFAULT_USER_LEVEL);
+        setLevelDisplayName(DEFAULT_LEVEL_DISPLAY_NAME);
       }
     };
 
