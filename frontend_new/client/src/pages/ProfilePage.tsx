@@ -129,11 +129,13 @@ export const ProfilePage = (): JSX.Element => {
       ];
     }
 
-    return Object.values(userLevelInfo.exp_field_info).map(fieldInfo => ({
-      label: fieldInfo.display_name,
-      value: fieldInfo.required_for_next_level > 0 
-        ? Math.round((fieldInfo.current_value / fieldInfo.required_for_next_level) * 100)
-        : 0
+    return Object.entries(userLevelInfo.exp_field_info)
+      .sort(([, a], [, b]) => a.display_name.localeCompare(b.display_name)) // Sort by display_name
+      .map(([, fieldInfo]) => ({
+        label: fieldInfo.display_name,
+        value: fieldInfo.required_for_next_level > 0 
+          ? Math.round((fieldInfo.current_value / fieldInfo.required_for_next_level) * 100)
+          : 0
     }));
   };
 
