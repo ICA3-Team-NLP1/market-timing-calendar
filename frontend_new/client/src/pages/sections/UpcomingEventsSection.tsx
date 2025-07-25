@@ -25,7 +25,7 @@ export const UpcomingEventsSection = (): JSX.Element => {
             key={`question-${index}`}
             variant="outline"
             className="flex items-center gap-1 px-4 py-2.5 h-auto bg-[#e8f0ff] rounded-[100px] shadow-[0px_4px_4px_#00000005] border-none hover:bg-[#d8e5fa] w-fit"
-            onClick={() => setLocation("/chat")}
+            onClick={() => setLocation(`/chat?question=${encodeURIComponent(question)}`)}
           >
             <div className="relative w-[15px] h-[15px] flex-shrink-0">
               <svg viewBox="0 0 15 15" className="w-full h-full" fill="#444445">

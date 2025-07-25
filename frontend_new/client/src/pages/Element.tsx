@@ -1,9 +1,14 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { useLocation } from "wouter";
 
 export const Element = (): JSX.Element => {
   const [, setLocation] = useLocation();
+
+  // 페이지 로드 시 스크롤 맨 위로 이동
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const handleClick = () => {
     setLocation("/login");

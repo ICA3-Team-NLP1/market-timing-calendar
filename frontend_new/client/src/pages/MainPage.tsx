@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { FomcResultsSection } from "./sections/FomcResultsSection";
 import { InsightsSection } from "./sections/InsightsSection";
@@ -9,6 +9,11 @@ import { useLocation } from "wouter";
 
 export const MainPage = (): JSX.Element => {
   const [, setLocation] = useLocation();
+
+  // 페이지 로드 시 스크롤 맨 위로 이동
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   return (
     <div className="relative w-full max-w-[393px] h-full min-h-[852px] bg-white overflow-y-auto mx-auto">
       <div className="relative w-full h-full">
@@ -65,7 +70,7 @@ export const MainPage = (): JSX.Element => {
       <AppHeader />
 
       {/* Fixed Chat Input */}
-      <ChatInput onClick={() => setLocation("/chat")} readOnly />
+      <ChatInput readOnly={false} />
     </div>
   );
 };

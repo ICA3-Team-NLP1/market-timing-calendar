@@ -558,8 +558,15 @@ export const chatConversation = async (
 
     const idToken = await currentUser.getIdToken();
 
+    const params = new URLSearchParams({
+        use_filter: 'true',
+        use_level_chain: 'true',
+        is_mem0_api: 'true',
+        chunk_size: '50'
+    });
+
     const response = await fetch(
-        `${API_BASE_URL}/api/v1/chatbot/conversation`,
+        `${API_BASE_URL}/api/v1/chatbot/conversation?${params}`,
         {
             method: "POST",
             headers: {
@@ -584,7 +591,7 @@ export const chatConversation = async (
     return response; // 스트리밍 응답 반환
 };
 
-// 🔧 이벤트 설명 API (스트리밍)
+// 🔧 이벤트 설명 API (스트리밍) - 이미 정의됨
 export const explainEvent = async (eventId, safetyLevel = "moderate") => {
     if (window._replit) {
         // 더미 스트리밍 응답 모의
