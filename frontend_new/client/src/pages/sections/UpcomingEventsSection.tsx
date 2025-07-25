@@ -3,15 +3,32 @@ import { Button } from "@/components/ui/button";
 import { Level1Gem } from "@/components/icons/Level1Gem";
 import { Level2Gem } from "@/components/icons/Level2Gem";
 import { useLocation } from "wouter";
+import { handleLevelUpdate } from "@/utils/levelUpHelper";
+import { useLevelUp } from "@/contexts/LevelUpContext";
 
 export const UpcomingEventsSection = (): JSX.Element => {
   const [, setLocation] = useLocation();
+  const { showLevelUpModal } = useLevelUp();
+  
   // Data for recommended questions
   const recommendedQuestions = [
     "금리 인하가 왜 중요한가요?",
     "FOMC가 뭐예요?",
     "연준이 뭐예요?",
   ];
+
+  const handleEventClick = async (eventId: number) => {
+    // 레벨 업데이트 - 일정 조회 (다가오는 일정 클릭 시)
+    await handleLevelUpdate('calendar_views', showLevelUpModal);
+
+    setLocation(`/chat?eventId=${eventId}`);
+  };
+
+  const handleRecommendedQuestionClick = async (question: string) => {
+    // 레벨 업데이트 - 추천 질문 클릭 시
+    await handleLevelUpdate('chatbot_conversations', showLevelUpModal);
+    setLocation(`/chat?question=${encodeURIComponent(question)}`);
+  };
 
   return (
     <section className="w-full py-8 px-6">
@@ -25,7 +42,7 @@ export const UpcomingEventsSection = (): JSX.Element => {
             key={`question-${index}`}
             variant="outline"
             className="flex items-center gap-1 px-4 py-2.5 h-auto bg-[#e8f0ff] rounded-[100px] shadow-[0px_4px_4px_#00000005] border-none hover:bg-[#d8e5fa] w-fit"
-            onClick={() => setLocation(`/chat?question=${encodeURIComponent(question)}`)}
+            onClick={() => handleRecommendedQuestionClick(question)}
           >
             <div className="relative w-[15px] h-[15px] flex-shrink-0">
               <svg viewBox="0 0 15 15" className="w-full h-full" fill="#444445">

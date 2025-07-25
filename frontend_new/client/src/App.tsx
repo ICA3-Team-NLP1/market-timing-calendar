@@ -11,6 +11,7 @@ import { MainPage } from "@/pages/MainPage";
 import { ChatPage } from "@/pages/ChatPage";
 import { CalendarPage } from "@/pages/CalendarPage";
 import { ProfilePage } from "@/pages/ProfilePage";
+import { LevelUpProvider } from "./contexts/LevelUpContext";
 
 function Router() {
   return (
@@ -31,10 +32,12 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Router />
-      </TooltipProvider>
+      <LevelUpProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Router />
+        </TooltipProvider>
+      </LevelUpProvider>
     </QueryClientProvider>
   );
 }

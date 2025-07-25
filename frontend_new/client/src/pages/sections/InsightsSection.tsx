@@ -5,11 +5,21 @@ import { Level2Gem } from "@/components/icons/Level2Gem";
 import { Level3Gem } from "@/components/icons/Level3Gem";
 import { useLocation } from "wouter";
 import { getCalendarEvents } from "@/utils/api";
+import { handleLevelUpdate } from "@/utils/levelUpHelper";
+import { useLevelUp } from "@/contexts/LevelUpContext";
 
 export const InsightsSection = (): JSX.Element => {
   const [, setLocation] = useLocation();
+  const { showLevelUpModal } = useLevelUp();
   const [upcomingEvents, setUpcomingEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const handleEventClick = async (eventId: number) => {
+    // 레벨 업데이트 - 일정 조회 (다가오는 일정 클릭 시)
+    await handleLevelUpdate('calendar_views', showLevelUpModal);
+    
+    setLocation(`/chat?eventId=${eventId}`);
+  };
 
   // 날짜 포맷 함수
   const formatEventDate = (eventDate: string) => {
@@ -134,7 +144,7 @@ return (
             <Card
               key={event.id}
               className="flex-shrink-0 bg-[#f1f3f7] rounded-md shadow-[0px_4px_4px_#00000005] border-none cursor-pointer hover:bg-[#e1e7f1] transition-colors"
-              onClick={() => setLocation(`/chat?eventId=${event.id}`)}
+              onClick={() => handleEventClick(event.id)}
             >
               <CardContent className="flex flex-col items-start gap-2.5 pt-4 pb-5 px-4">
                 <div className="flex items-center justify-between w-full">

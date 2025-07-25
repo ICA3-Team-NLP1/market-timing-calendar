@@ -9,6 +9,8 @@ import { Level2Gem } from "@/components/icons/Level2Gem";
 import { Level3Gem } from "@/components/icons/Level3Gem";
 import { useLocation } from "wouter";
 import { getCalendarEvents, getCurrentUser } from "@/utils/api";
+import { handleLevelUpdate } from "@/utils/levelUpHelper";
+import { useLevelUp } from "@/contexts/LevelUpContext";
 
 export const CalendarPage = (): JSX.Element => {
   const [, setLocation] = useLocation();
@@ -17,6 +19,7 @@ export const CalendarPage = (): JSX.Element => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [userLevel, setUserLevel] = useState("BEGINNER");
+  const { showLevelUpModal } = useLevelUp();
 
   // 페이지 로드 시 스크롤 맨 위로 이동
   useEffect(() => {
@@ -264,7 +267,11 @@ export const CalendarPage = (): JSX.Element => {
                             variant="ghost" 
                             size="sm" 
                             className="text-[12px] text-[#666666] p-0 h-auto font-normal hover:bg-transparent"
-                            onClick={() => setLocation(`/chat?eventId=${event.id}`)}
+                            onClick={async () => {
+                              // 레벨 업데이트 - 일정 조회 (캘린더 자세히보기 클릭 시)
+                              await handleLevelUpdate('calendar_views', showLevelUpModal);
+                              setLocation(`/chat?eventId=${event.id}`);
+                            }}
                           >
                             자세히 보기
                             <ChevronRight className="w-3 h-3 ml-1" />

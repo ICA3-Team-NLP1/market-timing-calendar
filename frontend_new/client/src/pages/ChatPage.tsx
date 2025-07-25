@@ -6,6 +6,8 @@ import { useLocation } from "wouter";
 import { explainEvent, getCalendarEvents, chatConversation } from "@/utils/api";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { handleLevelUpdate } from "@/utils/levelUpHelper";
+import { useLevelUp } from "@/contexts/LevelUpContext";
 
 interface ChatMessage {
   type: "user" | "assistant";
@@ -17,6 +19,7 @@ export const ChatPage = (): JSX.Element => {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [currentEvent, setCurrentEvent] = useState<any>(null);
+  const { showLevelUpModal } = useLevelUp();
 
   // URL에서 파라미터 추출
   const urlParams = new URLSearchParams(window.location.search);
@@ -79,7 +82,7 @@ export const ChatPage = (): JSX.Element => {
         const chunk = decoder.decode(value, { stream: true });
         buffer += chunk;
         fullResponseText += chunk; // 전체 응답에 추가
-        
+
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
@@ -120,7 +123,7 @@ export const ChatPage = (): JSX.Element => {
       if (finalSessionIdMatch && finalSessionIdMatch[1]) {
         const finalSessionId = finalSessionIdMatch[1].trim();
         const currentStoredId = getStoredSessionId();
-        
+
         if (currentStoredId !== finalSessionId) {
           setStoredSessionId(finalSessionId);
         }
@@ -130,7 +133,7 @@ export const ChatPage = (): JSX.Element => {
 
   // 공통 에러 처리 함수
   const handleChatError = (error: any, functionName: string) => {
-    
+
     let errorMessage = "죄송합니다. 응답을 생성하는 중 오류가 발생했습니다.";
     if (error.message) {
       errorMessage += ` (${error.message})`;
@@ -144,9 +147,14 @@ export const ChatPage = (): JSX.Element => {
 
   // 새로운 질문 처리 (연속 대화)
   const handleNewQuestion = async (questionText: string) => {
-    
+
     try {
       setIsLoading(true);
+
+      // 세션 ID가 없는 상태에서 질문하는 경우 레벨 업데이트
+      if (!getStoredSessionId()) {
+        await handleLevelUpdate('chatbot_conversations', showLevelUpModal);
+      }
 
       const userMessage: ChatMessage = { type: "user", content: questionText };
       const newMessages = [...messages, userMessage];
@@ -170,9 +178,12 @@ export const ChatPage = (): JSX.Element => {
   };
 
   const handleRecommendedQuestion = async (questionText: string) => {
-    
     try {
       setIsLoading(true);
+       // 세션 ID가 없는 상태에서 질문하는 경우 레벨 업데이트
+      if (!getStoredSessionId()) {
+        await handleLevelUpdate('chatbot_conversations', showLevelUpModal);
+      }
 
       const userMessage: ChatMessage = { type: "user", content: questionText };
       setMessages([userMessage]);
@@ -190,7 +201,7 @@ export const ChatPage = (): JSX.Element => {
   };
 
   const loadEventAndExplain = async (eventId: number) => {
-    
+
     try {
       setIsLoading(true);
 

@@ -4,6 +4,10 @@ import { Button } from "@/components/ui/button";
 import { CalendarIcon } from "lucide-react";
 import { useLocation } from "wouter";
 
+import { chatConversation } from "../../utils/api";
+import { handleLevelUpdate } from "../../utils/levelUpHelper";
+import { useLevelUp } from "../../contexts/LevelUpContext";
+
 interface ChatInputProps {
   onClick?: () => void;
   readOnly?: boolean;
@@ -18,6 +22,7 @@ export const ChatInput = ({
   onSubmit
 }: ChatInputProps): JSX.Element => {
   const [, setLocation] = useLocation();
+  const { showLevelUpModal } = useLevelUp();
   const [inputValue, setInputValue] = useState("");
 
   const handleCalendarClick = () => {
@@ -30,13 +35,16 @@ export const ChatInput = ({
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent<HTMLInputElement>) => {
+  const handleKeyPress = async (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && inputValue.trim() && !readOnly) {
       if (onSubmit) {
         // 현재 페이지에서 메시지 전송
         onSubmit(inputValue.trim());
         setInputValue("");
       } else {
+        // 레벨 업데이트 - 채팅 질문 입력 시
+        await handleLevelUpdate('chatbot_conversations', showLevelUpModal);
+        
         // 질문과 함께 /chat으로 이동
         setLocation(`/chat?question=${encodeURIComponent(inputValue.trim())}`);
         setInputValue("");
