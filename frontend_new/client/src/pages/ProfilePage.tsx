@@ -48,6 +48,11 @@ export const ProfilePage = (): JSX.Element => {
   const handleLogout = async () => {
     try {
       await signOut(auth);
+      
+      // sessionStorage 정리
+      window.sessionStorage.removeItem('chatSessionId');
+      console.log("세션 스토리지 정리 완료");
+      
       window._replit = false; // 더미 모드 비활성화
       localStorage.removeItem('dummyUser'); // 더미 사용자 정보 제거
       console.log('✅ 로그아웃 성공');
