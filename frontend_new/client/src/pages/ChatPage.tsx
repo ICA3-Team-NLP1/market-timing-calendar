@@ -107,7 +107,6 @@ export const ChatPage = (): JSX.Element => {
             if (sessionIdMatch && sessionIdMatch[1]) {
               const extractedSessionId = sessionIdMatch[1].trim();
               setStoredSessionId(extractedSessionId);
-              console.log('스트리밍 중 세션 ID 저장됨:', extractedSessionId);
             }
           } else if (line.trim() && !line.startsWith('data:') && !line.includes('SESSION_ID:')) {
             assistantMessage.content += line.trim() + ' ';
@@ -124,7 +123,6 @@ export const ChatPage = (): JSX.Element => {
         
         if (currentStoredId !== finalSessionId) {
           setStoredSessionId(finalSessionId);
-          console.log('스트리밍 완료 후 세션 ID 저장됨:', finalSessionId);
         }
       }
     }
@@ -132,7 +130,6 @@ export const ChatPage = (): JSX.Element => {
 
   // 공통 에러 처리 함수
   const handleChatError = (error: any, functionName: string) => {
-    console.error(`${functionName} 요청 실패:`, error);
     
     let errorMessage = "죄송합니다. 응답을 생성하는 중 오류가 발생했습니다.";
     if (error.message) {
@@ -147,7 +144,6 @@ export const ChatPage = (): JSX.Element => {
 
   // 새로운 질문 처리 (연속 대화)
   const handleNewQuestion = async (questionText: string) => {
-    console.log('🔄 handleNewQuestion');
     
     try {
       setIsLoading(true);
@@ -174,7 +170,6 @@ export const ChatPage = (): JSX.Element => {
   };
 
   const handleRecommendedQuestion = async (questionText: string) => {
-    console.log('📋 handleRecommendedQuestion');
     
     try {
       setIsLoading(true);
@@ -195,7 +190,6 @@ export const ChatPage = (): JSX.Element => {
   };
 
   const loadEventAndExplain = async (eventId: number) => {
-    console.log('📅 loadEventAndExplain');
     
     try {
       setIsLoading(true);
@@ -231,7 +225,6 @@ export const ChatPage = (): JSX.Element => {
       const response = await explainEvent(eventId);
       await processStreamingResponse(response, [userMessage], assistantMessage, false);
     } catch (error) {
-      console.error('이벤트 설명 요청 실패:', error);
       setMessages([{
         type: "assistant",
         content: "죄송합니다. 이벤트 설명을 가져오는 중 오류가 발생했습니다."
