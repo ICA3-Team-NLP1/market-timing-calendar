@@ -368,17 +368,12 @@ export const apiCall = async (url, options = {}) => {
     try {
         // 현재 로그인된 사용자 확인
         const currentUser = auth.currentUser;
-        console.log("🔍 API 호출 시작:", { url, currentUser: !!currentUser });
-        
         if (!currentUser) {
-            console.error("❌ 로그인된 사용자 없음");
             throw new Error("로그인이 필요합니다");
         }
 
         // Firebase ID Token 자동 획득
-        console.log("🔑 토큰 획득 시도...");
         const idToken = await currentUser.getIdToken();
-        console.log("✅ 토큰 획득 성공");
 
         // Authorization 헤더 자동 추가
         const headers = {
@@ -387,32 +382,19 @@ export const apiCall = async (url, options = {}) => {
             ...options.headers,
         };
 
-        console.log("📡 API 요청 전송:", { url, method: options.method || 'GET' });
-
         // API 호출
         const response = await fetch(url, {
             ...options,
             headers,
         });
 
-        console.log("📡 API 응답 수신:", { status: response.status, ok: response.ok });
-
         if (!response.ok) {
             const errorData = await response.json();
-            console.error("❌ API 응답 오류:", errorData);
             throw new Error(errorData.detail || `HTTP ${response.status}`);
         }
 
         return await response.json();
     } catch (error) {
-        console.error("❌ API 호출 실패:", error);
-        console.error("❌ API 호출 상세 정보:", {
-            url,
-            method: options.method || 'GET',
-            headers: options.headers,
-            errorMessage: error.message,
-            errorStack: error.stack
-        });
         throw error;
     }
 };
