@@ -254,7 +254,9 @@ export const CalendarPage = (): JSX.Element => {
                       {/* Event Header */}
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
-                          {event.level === 1 ? <Level1Gem /> : event.level === 2 ? <Level2Gem /> : <Level3Gem />}
+                          <div className="flex-shrink-0 w-[22px] h-[20px] flex items-center justify-center">
+                            {event.level === 1 ? <Level1Gem /> : event.level === 2 ? <Level2Gem /> : <Level3Gem />}
+                          </div>
                           <span className="font-bold text-[#1a1a1a] text-[18px]">{event.title}</span>
                         </div>
                         {event.hasDetail && (
