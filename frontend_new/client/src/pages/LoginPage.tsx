@@ -32,6 +32,11 @@ export const LoginPage = (): JSX.Element => {
         return () => unsubscribe();
     }, [setLocation]);
 
+    // 페이지 로드 시 스크롤 맨 위로 이동
+    useEffect(() => {
+        window.scrollTo(0, 0);
+    }, []);
+
     // Google 로그인
     const handleGoogleLogin = async () => {
         setLoading(true);

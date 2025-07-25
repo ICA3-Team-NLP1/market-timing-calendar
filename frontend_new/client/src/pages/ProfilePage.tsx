@@ -14,10 +14,18 @@ import { deleteUser, getUserLevelInfo } from '../utils/api';
 
 export const ProfilePage = (): JSX.Element => {
   const [, setLocation] = useLocation();
+  const [userData, setUserData] = useState(null);
+  const [levelInfo, setLevelInfo] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // 페이지 로드 시 스크롤 맨 위로 이동
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [error, setError] = useState('');
   const [userLevelInfo, setUserLevelInfo] = useState(null);
-  const [loading, setLoading] = useState(true);
+
 
   // 사용자 레벨 정보 로드
   useEffect(() => {
@@ -83,7 +91,7 @@ export const ProfilePage = (): JSX.Element => {
   // 레벨에 따른 보석 아이콘 렌더링
   const renderLevelGem = () => {
     if (!userLevelInfo) return <Level2GemLarge />;
-    
+
     switch (userLevelInfo.current_level) {
       case "BEGINNER":
         return <Level1GemLarge />;
@@ -99,7 +107,7 @@ export const ProfilePage = (): JSX.Element => {
   // 레벨에 따른 표시명 반환
   const getLevelDisplayName = () => {
     if (!userLevelInfo) return "관심러";
-    
+
     switch (userLevelInfo.current_level) {
       case "BEGINNER":
         return "주린이";
@@ -162,7 +170,7 @@ export const ProfilePage = (): JSX.Element => {
             <div className="absolute w-[427px] h-[315px] top-0 left-[190px] bg-gradient-to-r from-white/50 to-gray-200/30 rounded-full blur-3xl" />
             <div className="absolute w-[755px] h-[772px] top-[388px] left-[131px] bg-gradient-to-r from-purple-300/30 to-pink-300/30 rounded-full blur-3xl" />
             <div className="absolute w-[439px] h-[496px] top-[325px] left-[191px] bg-gradient-to-r from-blue-300/30 to-cyan-300/30 rounded-full blur-3xl" />
-            
+
             <div className="absolute w-full h-full top-[89px] left-[162px] bg-white/55 backdrop-blur-sm" />
           </div>
         </div>
@@ -264,7 +272,7 @@ export const ProfilePage = (): JSX.Element => {
               로그아웃
             </span>
           </Button>
-          
+
           <Button
             variant="destructive"
             className="rounded-[100px] px-4 py-2.5 h-auto"

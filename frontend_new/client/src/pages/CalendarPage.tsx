@@ -18,6 +18,11 @@ export const CalendarPage = (): JSX.Element => {
   const [activeTab, setActiveTab] = useState("all");
   const [userLevel, setUserLevel] = useState("BEGINNER");
 
+  // 페이지 로드 시 스크롤 맨 위로 이동
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   const handleBackClick = () => {
     setLocation("/main");
   };
@@ -40,10 +45,10 @@ export const CalendarPage = (): JSX.Element => {
       setLoading(true);
       const startDate = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
       const endDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0);
-      
+
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endDate.toISOString().split('T')[0];
-      
+
       // 모든 이벤트를 가져와서 프론트엔드에서 필터링
       const eventsData = await getCalendarEvents(startDateStr, endDateStr, null);
       setEvents(eventsData);
@@ -104,7 +109,7 @@ export const CalendarPage = (): JSX.Element => {
   // 이벤트를 날짜별로 그룹핑하고 popularity 순으로 정렬
   const groupEventsByDate = (events) => {
     const grouped = {};
-    
+
     // 탭에 따른 이벤트 필터링
     let filteredEvents = events;
     if (activeTab === "level1") {
@@ -115,12 +120,12 @@ export const CalendarPage = (): JSX.Element => {
       filteredEvents = events.filter(event => event.level === "ADVANCED");
     }
     // activeTab === "all"인 경우는 모든 이벤트를 표시
-    
+
     filteredEvents.forEach(event => {
       const eventDate = new Date(event.date);
       const dateKey = eventDate.getDate(); // 날짜만 숫자로 저장
       const displayDateKey = `${eventDate.getMonth() + 1}월 ${eventDate.getDate()}일`;
-      
+
       if (!grouped[dateKey]) {
         grouped[dateKey] = {
           displayDate: displayDateKey,
@@ -128,7 +133,7 @@ export const CalendarPage = (): JSX.Element => {
           events: []
         };
       }
-      
+
       grouped[dateKey].events.push({
         id: event.id,
         level: event.level === "BEGINNER" ? 1 : event.level === "INTERMEDIATE" ? 2 : 3,
@@ -139,12 +144,12 @@ export const CalendarPage = (): JSX.Element => {
         popularity: event.popularity || 1
       });
     });
-    
+
     // 각 날짜별로 popularity 순으로 정렬 (높은 순)
     Object.keys(grouped).forEach(dateKey => {
       grouped[dateKey].events.sort((a, b) => b.popularity - a.popularity);
     });
-    
+
     // 날짜 순으로 정렬된 배열로 변환
     return Object.entries(grouped)
       .map(([dateKey, dateData]) => ({ 
@@ -241,7 +246,7 @@ export const CalendarPage = (): JSX.Element => {
                 <div className="text-sm font-medium text-[#666666] mb-3">
                   {dateGroup.date}
                 </div>
-                
+
                 {/* Events for this date */}
                 <div className="space-y-3">
                   {dateGroup.events.map((event, eventIndex) => (
