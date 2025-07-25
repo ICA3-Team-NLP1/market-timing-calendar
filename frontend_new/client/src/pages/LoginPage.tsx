@@ -82,11 +82,16 @@ export const LoginPage = (): JSX.Element => {
     const handleLogout = async () => {
         try {
             await signOut(auth);
+
+            // sessionStorage 정리
+            window.sessionStorage.removeItem('chatSessionId');
+            console.log("세션 스토리지 정리 완료");
+
+            console.log('✅ 로그아웃 성공');
             setUser(null);
             setApiResult(null); // 🔧 API 결과도 초기화
             window._replit = false; // 더미 모드 비활성화
             localStorage.removeItem('dummyUser'); // 더미 사용자 정보 제거
-            console.log('✅ 로그아웃 성공');
         } catch (error) {
             console.error('로그아웃 실패:', error);
         }
