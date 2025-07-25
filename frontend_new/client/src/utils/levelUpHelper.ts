@@ -10,9 +10,15 @@ export interface LevelUpResult {
   next_level_conditions?: Record<string, number>;
 }
 
+export interface LevelUpModalData {
+  newLevel: string;
+  message?: string;
+  exp: Record<string, number>;
+}
+
 export const handleLevelUpdate = async (
   eventType: string, 
-  showLevelUpModal?: (data: any) => void
+  showLevelUpModal?: (data: LevelUpModalData) => void
 ): Promise<LevelUpResult | null> => {
   try {
     console.log(`레벨 업데이트 시작: ${eventType}`);

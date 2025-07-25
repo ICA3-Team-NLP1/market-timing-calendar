@@ -1,9 +1,10 @@
 
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { LevelUpModal } from '@/components/modals/LevelUpModal';
+import { LevelUpModalData } from '@/utils/levelUpHelper';
 
 interface LevelUpContextType {
-  showLevelUpModal: (levelUpData?: any) => void;
+  showLevelUpModal: (levelUpData?: LevelUpModalData) => void;
   hideLevelUpModal: () => void;
 }
 
@@ -23,10 +24,10 @@ interface LevelUpProviderProps {
 
 export const LevelUpProvider = ({ children }: LevelUpProviderProps): JSX.Element => {
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [levelUpData, setLevelUpData] = useState<any>(null);
+  const [levelUpData, setLevelUpData] = useState<LevelUpModalData | null>(null);
 
-  const showLevelUpModal = (data?: any) => {
-    setLevelUpData(data);
+  const showLevelUpModal = (data?: LevelUpModalData) => {
+    setLevelUpData(data || null);
     setIsModalOpen(true);
   };
 
