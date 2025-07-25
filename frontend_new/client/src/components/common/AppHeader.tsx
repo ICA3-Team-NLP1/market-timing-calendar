@@ -44,9 +44,11 @@ export const AppHeader = ({ showBackButton = false, onBackClick }: AppHeaderProp
 
   // 레벨업 이벤트 감지를 위한 이벤트 리스너
   useEffect(() => {
+    const LEVEL_UPDATE_DELAY = 500; // ms
+    
     const handleLevelUp = () => {
       // 레벨업 발생 시 사용자 레벨 정보 다시 로드
-      setTimeout(loadUserLevel, 500); // 약간의 지연을 두고 로드
+      setTimeout(loadUserLevel, LEVEL_UPDATE_DELAY);
     };
 
     // 커스텀 이벤트 리스너 등록
