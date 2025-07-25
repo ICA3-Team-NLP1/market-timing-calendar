@@ -9,6 +9,8 @@ import {
 } from 'firebase/auth';
 import { auth } from '../firebase';
 import { getCurrentUser, deleteUser } from '../utils/api'; // 🔧 API 함수 import
+import { handleLevelUpdate } from '../utils/levelUpHelper';
+import { useLevelUp } from '../contexts/LevelUpContext';
 
 export const LoginPage = (): JSX.Element => {
     const [, setLocation] = useLocation();
@@ -18,6 +20,7 @@ export const LoginPage = (): JSX.Element => {
     const [apiResult, setApiResult] = useState(null); // 🔧 API 결과 저장
     const [apiLoading, setApiLoading] = useState(false); // 🔧 API 호출 로딩
     const [deleteLoading, setDeleteLoading] = useState(false); // 🔧 탈퇴 로딩
+    const { showLevelUpModal } = useLevelUp();
 
     // Firebase Auth 상태 감지
     useEffect(() => {
@@ -48,6 +51,10 @@ export const LoginPage = (): JSX.Element => {
 
             console.log('Google 로그인 성공:', result.user);
             setUser(result.user);
+            
+            // 레벨 업데이트 - 서비스 방문
+            await handleLevelUpdate('service_visits', showLevelUpModal);
+            
             setLocation("/main");
         } catch (error) {
             console.error('Google 로그인 실패:', error);
@@ -127,7 +134,7 @@ export const LoginPage = (): JSX.Element => {
     };
 
     // 🔧 개발용 더미 로그인
-    const handleDummyLogin = () => {
+    const handleDummyLogin = async () => {
         console.log('더미 로그인 실행');
         // 더미 모드 활성화
         window._replit = true;
@@ -139,6 +146,10 @@ export const LoginPage = (): JSX.Element => {
             photoURL: "https://via.placeholder.com/150"
         };
         localStorage.setItem('dummyUser', JSON.stringify(dummyUser));
+        
+        // 레벨 업데이트 - 서비스 방문
+        await handleLevelUpdate('service_visits', showLevelUpModal);
+        
         setLocation("/main"); // Redirect to main page
     };
 

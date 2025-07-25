@@ -8,6 +8,7 @@ import { LevelUpModal } from "@/components/modals/LevelUpModal";
 import { useLocation } from "wouter";
 import { getCurrentUser } from "@/utils/api";
 import { DEFAULT_USER_LEVEL, DEFAULT_LEVEL_DISPLAY_NAME, LEVEL_DISPLAY_NAMES } from "@/constants/userLevels";
+import { useLevelUp } from "@/contexts/LevelUpContext";
 
 interface AppHeaderProps {
   showBackButton?: boolean;
@@ -19,25 +20,41 @@ export const AppHeader = ({ showBackButton = false, onBackClick }: AppHeaderProp
   const [userLevel, setUserLevel] = useState(DEFAULT_USER_LEVEL); // 기본값
   const [levelDisplayName, setLevelDisplayName] = useState(DEFAULT_LEVEL_DISPLAY_NAME); // 기본값
   const [, setLocation] = useLocation();
+  const { showLevelUpModal } = useLevelUp();
 
   // 사용자 레벨 정보 로드
+  const loadUserLevel = async () => {
+    try {
+      const user = await getCurrentUser();
+      setUserLevel(user.level);
+      
+      const displayName = LEVEL_DISPLAY_NAMES[user.level as keyof typeof LEVEL_DISPLAY_NAMES] || LEVEL_DISPLAY_NAMES.INTERMEDIATE;
+      setLevelDisplayName(displayName);
+    } catch (error) {
+      console.error('사용자 레벨 로드 실패:', error);
+      // 에러 시 기본값 유지
+      setUserLevel(DEFAULT_USER_LEVEL);
+      setLevelDisplayName(DEFAULT_LEVEL_DISPLAY_NAME);
+    }
+  };
+
   useEffect(() => {
-    const loadUserLevel = async () => {
-      try {
-        const user = await getCurrentUser();
-        setUserLevel(user.level);
-        
-        const displayName = LEVEL_DISPLAY_NAMES[user.level as keyof typeof LEVEL_DISPLAY_NAMES] || LEVEL_DISPLAY_NAMES.INTERMEDIATE;
-        setLevelDisplayName(displayName);
-      } catch (error) {
-        console.error('사용자 레벨 로드 실패:', error);
-        // 에러 시 기본값 유지
-        setUserLevel(DEFAULT_USER_LEVEL);
-        setLevelDisplayName(DEFAULT_LEVEL_DISPLAY_NAME);
-      }
+    loadUserLevel();
+  }, []);
+
+  // 레벨업 이벤트 감지를 위한 이벤트 리스너
+  useEffect(() => {
+    const handleLevelUp = () => {
+      // 레벨업 발생 시 사용자 레벨 정보 다시 로드
+      setTimeout(loadUserLevel, 500); // 약간의 지연을 두고 로드
     };
 
-    loadUserLevel();
+    // 커스텀 이벤트 리스너 등록
+    window.addEventListener('levelUp', handleLevelUp);
+
+    return () => {
+      window.removeEventListener('levelUp', handleLevelUp);
+    };
   }, []);
 
   const handleCaffyClick = () => {
