@@ -86,17 +86,7 @@
           "name": "KOREA_BANK_API_KEY",
           "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/korea-bank-api-key"
         }
-      ],
-      "healthCheck": {
-        "command": [
-          "CMD-SHELL",
-          "celery -A background.celery_app inspect ping || exit 1"
-        ],
-        "interval": 60,
-        "timeout": 10,
-        "retries": 3,
-        "startPeriod": 120
-      }
+      ]
     }
   ]
 }

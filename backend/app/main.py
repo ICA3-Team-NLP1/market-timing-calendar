@@ -53,7 +53,13 @@ def create_app():
 
     db.init_db(settings.DB_INFO)
 
-    # API 라우터 등록
+    # 직접 헬스체크 엔드포인트 추가 (SPA fallback보다 먼저 등록)
+    @app.get("/health")
+    async def health_check():
+        """헬스체크 - 직접 경로"""
+        return {"status": "healthy", "service": "Market Timing Calendar", "version": "1.0.0"}
+
+    # API 라우터 등록 (health보다 나중에)
     from app.api.index import router
     from app.api.v1.api import api_router as v1_api_router
 
@@ -80,6 +86,7 @@ def create_app():
             raise HTTPException(status_code=404, detail="Frontend index.html not found")
 
         # React Router를 위한 fallback (SPA 라우팅 지원)
+        # 단, API와 health 경로는 제외
         @app.get("/{full_path:path}")
         async def serve_react_router(full_path: str):
             """
@@ -93,6 +100,10 @@ def create_app():
             # static, assets 경로도 제외
             if full_path.startswith(("static/", "assets/")):
                 raise HTTPException(status_code=404, detail="Static file not found")
+
+            # 헬스체크 경로 제외 - 이미 위에서 등록됨
+            if full_path == "health":
+                raise HTTPException(status_code=404, detail="Health endpoint not found")
 
             # 나머지 모든 경로는 React 앱으로
             index_file = static_dir / "index.html"
