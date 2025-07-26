@@ -68,8 +68,14 @@ CMD ["python", "startup.py"]
 # ===== Stage 4: 프로덕션 환경 =====
 FROM python:3.11-slim AS production
 
-# Firebase Service Account Key 빌드 아규먼트
-ARG FIREBASE_SERVICE_ACCOUNT_KEY
+# AWS 인증 정보 빌드 아규먼트
+ARG AWS_ACCESS_KEY_ID
+ARG AWS_SECRET_ACCESS_KEY
+
+# 환경변수 디버깅을 위한 로그 출력
+RUN echo "🔍 환경변수 디버깅:" && \
+    echo "  AWS_ACCESS_KEY_ID 존재: $(test -n "$AWS_ACCESS_KEY_ID" && echo 'YES' || echo 'NO')" && \
+    echo "  AWS_SECRET_ACCESS_KEY 존재: $(test -n "$AWS_SECRET_ACCESS_KEY" && echo 'YES' || echo 'NO')"
 
 # 최소한의 시스템 패키지
 RUN apt-get update && apt-get install -y \
@@ -89,11 +95,6 @@ COPY --from=frontend-builder /app/frontend/dist ./static
 # 백엔드 코드 복사
 COPY backend/ ./
 
-# Firebase Service Account Key 파일 생성 (GitHub Actions에서)
-RUN if [ ! -z "$FIREBASE_SERVICE_ACCOUNT_KEY" ]; then \
-    mkdir -p ./secrets && \
-    echo "$FIREBASE_SERVICE_ACCOUNT_KEY" > ./secrets/firebase-key.json; \
-fi
 
 # 비root 사용자 생성
 RUN groupadd -r appuser && useradd -r -g appuser appuser

@@ -1,92 +1,138 @@
-{
-  "family": "market-timing-background",
-  "networkMode": "awsvpc",
-  "requiresCompatibilities": ["FARGATE"],
-  "cpu": "512",
-  "memory": "1024",
-  "executionRoleArn": "arn:aws:iam::692631066742:role/ecsTaskExecutionRole-market-timing-calendar",
-  "taskRoleArn": "arn:aws:iam::692631066742:role/ecsTaskRole-market-timing-calendar",
-  "containerDefinitions": [
-    {
-      "name": "market-timing-background",
-      "image": "692631066742.dkr.ecr.ap-northeast-2.amazonaws.com/market-timing-calendar:background-latest",
-      "essential": true,
-      "logConfiguration": {
-        "logDriver": "awslogs",
-        "options": {
-          "awslogs-group": "/ecs/market-timing-calendar",
-          "awslogs-region": "ap-northeast-2",
-          "awslogs-stream-prefix": "background-worker"
-        }
-      },
-      "environment": [
-        {
-          "name": "PYTHONPATH",
-          "value": "/app"
-        },
-        {
-          "name": "REDIS_URL",
-          "value": "redis://market-timing-calendar-redis.bzqsot.0001.apn2.cache.amazonaws.com:6379/0"
-        },
-        {
-          "name": "ACTIVE_LLM_PROVIDER",
-          "value": "anthropic"
-        },
-        {
-          "name": "ACTIVE_LLM_MODEL",
-          "value": "claude-3-5-sonnet-latest"
-        },
-        {
-          "name": "LLM_BATCH_SIZE",
-          "value": "10"
-        },
-        {
-          "name": "LLM_API_DELAY",
-          "value": "0.5"
-        },
-        {
-          "name": "LLM_MAX_RETRIES",
-          "value": "3"
-        },
-        {
-          "name": "LANGFUSE_PUBLIC_KEY",
-          "value": "pk-lf-cc5cfed2-fc8a-41cb-82da-ffaed2742cdb"
-        },
-        {
-          "name": "LANGFUSE_SECRET_KEY",
-          "value": "sk-lf-c6b6a352-d2ad-462a-866f-35e5ad7d05f1"
-        },
-        {
-          "name": "LANGFUSE_HOST",
-          "value": "https://us.cloud.langfuse.com"
-        }
-      ],
-      "secrets": [
-        {
-          "name": "DATABASE_URL",
-          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/database-url"
-        },
-        {
-          "name": "OPENAI_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/openai-api-key"
-        },
-        {
-          "name": "ANTHROPIC_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/anthropic-api-key"
-        },
-        {
-          "name": "FRED_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/fred-api-key"
-        },
-        {
-          "name": "YAHOO_FINANCE_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/yahoo-finance-api-key"
-        },
-        {
-          "name": "KOREA_BANK_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/korea-bank-api-key"
-        }
-      ]
-    }
-  ]
-}
+name: Deploy to Amazon ECS
+
+on:
+  push:
+    branches: [ main, feature/add_github_action ]
+  pull_request:
+    branches: [ main ]
+    types: [ closed ]
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: market-timing-calendar
+  ECS_CLUSTER: market-timing-calendar
+  ECS_SERVICE: market-timing-calendar-service
+  ECS_TASK_DEFINITION: task-definition-main.json
+  CONTAINER_NAME: market-timing-calendar
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy FastAPI App to ECS
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true || github.event_name == 'push'
+    environment: production
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    # FastAPI 메인 앱 빌드 및 배포
+    - name: Build and push FastAPI app image
+      id: build-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # 메인 FastAPI 앱 이미지 빌드 (production 스테이지)
+        docker build \
+          --target production \
+          --build-arg VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }} \
+          --build-arg VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }} \
+          --build-arg VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }} \
+          --build-arg VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }} \
+          --build-arg VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }} \
+          --build-arg VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }} \
+          --build-arg VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }} \
+          --build-arg FIREBASE_SERVICE_ACCOUNT_KEY='${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}' \
+          -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+          -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
+          .
+        
+        # ECR에 푸시
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+        
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    # 태스크 정의 파일에서 이미지 업데이트
+    - name: Fill in the new image ID in the Amazon ECS task definition
+      id: task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: ${{ env.ECS_TASK_DEFINITION }}
+        container-name: ${{ env.CONTAINER_NAME }}
+        image: ${{ steps.build-image.outputs.image }}
+
+    # ECS 서비스에 배포
+    - name: Deploy Amazon ECS task definition
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.task-def.outputs.task-definition }}
+        service: ${{ env.ECS_SERVICE }}
+        cluster: ${{ env.ECS_CLUSTER }}
+        wait-for-service-stability: true
+
+    # 배포 결과 확인
+    - name: Get deployment status
+      if: always()
+      run: |
+        echo "📋 배포 결과 확인 중..."
+        
+        # 실행 중인 태스크 확인
+        RUNNING_TASKS=$(aws ecs list-tasks \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --service-name ${{ env.ECS_SERVICE }} \
+          --query 'taskArns' \
+          --output text)
+        
+        if [ -n "$RUNNING_TASKS" ]; then
+          echo "🎯 실행 중인 태스크: $RUNNING_TASKS"
+          
+          # 퍼블릭 IP 확인
+          TASK_ARN=$(echo $RUNNING_TASKS | awk '{print $1}')
+          PUBLIC_IP=$(aws ecs describe-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --tasks $TASK_ARN \
+            --query 'tasks[0].attachments[0].details[?name==`networkInterfaceId`].value' \
+            --output text | \
+            xargs -I {} aws ec2 describe-network-interfaces \
+            --network-interface-ids {} \
+            --query 'NetworkInterfaces[0].Association.PublicIp' \
+            --output text 2>/dev/null)
+          
+          if [ -n "$PUBLIC_IP" ] && [ "$PUBLIC_IP" != "None" ]; then
+            echo "🌐 FastAPI 애플리케이션 접속 정보:"
+            echo "   퍼블릭 IP: $PUBLIC_IP"
+            echo "   메인 URL: http://$PUBLIC_IP:8000"
+            echo "   헬스체크: http://$PUBLIC_IP:8000/health"
+            echo "   API 문서: http://$PUBLIC_IP:8000/docs"
+          fi
+        else
+          echo "❌ 실행 중인 태스크가 없습니다."
+        fi
+
+    - name: Deploy status notification
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ FastAPI 애플리케이션 배포가 성공적으로 완료되었습니다!"
+          echo "🔍 AWS ECS 콘솔에서 서비스 상태를 확인하세요."
+        else
+          echo "❌ 배포 중 오류가 발생했습니다."
+          echo "🔍 자세한 오류는 Actions 로그를 확인하세요."
+          exit 1
+        fi

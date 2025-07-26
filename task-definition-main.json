@@ -2,14 +2,16 @@
   "family": "market-timing-app",
   "networkMode": "awsvpc",
   "requiresCompatibilities": ["FARGATE"],
-  "cpu": "1024",
-  "memory": "2048",
+  "cpu": "512",
+  "memory": "1024",
   "executionRoleArn": "arn:aws:iam::692631066742:role/ecsTaskExecutionRole-market-timing-calendar",
   "taskRoleArn": "arn:aws:iam::692631066742:role/ecsTaskRole-market-timing-calendar",
   "containerDefinitions": [
     {
       "name": "market-timing-calendar",
-      "image": "692631066742.dkr.ecr.ap-northeast-2.amazonaws.com/market-timing-calendar:main-latest",
+      "image": "692631066742.dkr.ecr.ap-northeast-2.amazonaws.com/market-timing-calendar:latest",
+      "command": ["python", "startup.py"],
+      "workingDirectory": "/app",
       "essential": true,
       "portMappings": [
         {
@@ -22,53 +24,13 @@
         "options": {
           "awslogs-group": "/ecs/market-timing-calendar",
           "awslogs-region": "ap-northeast-2",
-          "awslogs-stream-prefix": "main-app"
+          "awslogs-stream-prefix": "fastapi-main-app"
         }
       },
       "environment": [
         {
-          "name": "ENVIRONMENT",
-          "value": "production"
-        },
-        {
-          "name": "PORT",
-          "value": "8000"
-        },
-        {
-          "name": "NODE_ENV",
-          "value": "production"
-        },
-        {
           "name": "PYTHONPATH",
           "value": "/app"
-        },
-        {
-          "name": "GOOGLE_REDIRECT_URI",
-          "value": "https://YOUR_DOMAIN/auth/callback"
-        },
-        {
-          "name": "LANGFUSE_PUBLIC_KEY",
-          "value": "pk-lf-cc5cfed2-fc8a-41cb-82da-ffaed2742cdb"
-        },
-        {
-          "name": "LANGFUSE_SECRET_KEY",
-          "value": "sk-lf-c6b6a352-d2ad-462a-866f-35e5ad7d05f1"
-        },
-        {
-          "name": "LANGFUSE_HOST",
-          "value": "https://us.cloud.langfuse.com"
-        },
-        {
-          "name": "MEM0_API_KEY",
-          "value": "m0-nPY5Q6CscEWDneNbwGMwPVcvBraco84f6kDBps83"
-        },
-        {
-          "name": "ACTIVE_LLM_PROVIDER",
-          "value": "openai"
-        },
-        {
-          "name": "ACTIVE_LLM_MODEL",
-          "value": "gpt-4-turbo"
         }
       ],
       "secrets": [
@@ -77,12 +39,48 @@
           "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/database-url"
         },
         {
-          "name": "GOOGLE_CLIENT_ID",
-          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/google-client-id"
+          "name": "REDIS_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/redis-url"
         },
         {
-          "name": "GOOGLE_CLIENT_SECRET",
-          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/google-client-secret"
+          "name": "FRED_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/fred-api-key"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/openai-api-key"
+        },
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/anthropic-api-key"
+        },
+        {
+          "name": "ACTIVE_LLM_PROVIDER",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/active-llm-provider"
+        },
+        {
+          "name": "ACTIVE_LLM_MODEL",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/active-llm-model"
+        },
+        {
+          "name": "LANGFUSE_PUBLIC_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/langfuse-public-key"
+        },
+        {
+          "name": "LANGFUSE_SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/langfuse-secret-key"
+        },
+        {
+          "name": "LANGFUSE_HOST",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/langfuse-host"
+        },
+        {
+          "name": "FASTAPI_ENV",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/fastapi-env"
+        },
+        {
+          "name": "MEM0_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/mem0-api-key"
         },
         {
           "name": "JWT_SECRET",
@@ -93,23 +91,19 @@
           "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/encryption-key"
         },
         {
-          "name": "OPENAI_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/openai-api-key"
-        },
-        {
-          "name": "ANTHROPIC_API_KEY",
-          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/anthropic-api-key"
+          "name": "FIREBASE_SERVICE_ACCOUNT_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/firebase-service-account-key"
         }
       ],
       "healthCheck": {
         "command": [
           "CMD-SHELL",
-          "curl -f http://localhost:8000/api/health || exit 1"
+          "curl -f http://localhost:8000/health || exit 1"
         ],
         "interval": 30,
         "timeout": 5,
         "retries": 3,
-        "startPeriod": 60
+        "startPeriod": 120
       }
     }
   ]

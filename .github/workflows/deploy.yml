@@ -11,23 +11,16 @@ env:
   AWS_REGION: ap-northeast-2
   ECR_REPOSITORY: market-timing-calendar
   ECS_CLUSTER: market-timing-calendar
-  
-  # 메인 앱 (Frontend + Backend)
-  MAIN_SERVICE: market-timing-calendar-service
-  MAIN_TASK_DEFINITION: task-definition-main.json
-  MAIN_CONTAINER_NAME: market-timing-calendar
-  
-  # 백그라운드 워커 (Celery)
-  BACKGROUND_SERVICE: market-timing-background-service
-  BACKGROUND_TASK_DEFINITION: task-definition-background.json
-  BACKGROUND_CONTAINER_NAME: market-timing-background
+  ECS_SERVICE: market-timing-calendar-service
+  ECS_TASK_DEFINITION: market-timing-app
+  CONTAINER_NAME: market-timing-calendar
 
 permissions:
   contents: read
 
 jobs:
   deploy:
-    name: Deploy Multi-Service to ECS
+    name: Deploy FastAPI App to ECS
     runs-on: ubuntu-latest
     if: github.event.pull_request.merged == true || github.event_name == 'push'
     environment: production
@@ -47,14 +40,19 @@ jobs:
       id: login-ecr
       uses: aws-actions/amazon-ecr-login@v2
 
-    # ========== 메인 앱 빌드 및 배포 ==========
-    - name: Build and push main app image
-      id: build-main-image
+    # FastAPI 메인 앱 빌드 및 배포
+    - name: Build and push FastAPI app image
+      id: build-image
       env:
         ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         IMAGE_TAG: ${{ github.sha }}
       run: |
-        # 메인 앱 이미지 빌드 (production 스테이지)
+        # 메인 FastAPI 앱 이미지 빌드 (production 스테이지)
+        echo "🔍 빌드 인수 확인:"
+        echo "  FIREBASE_SERVICE_ACCOUNT_KEY 존재 여부: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY != '' }}"
+        echo "  AWS_ACCESS_KEY_ID 존재 여부: ${{ secrets.AWS_ACCESS_KEY_ID != '' }}"
+        echo "  AWS_SECRET_ACCESS_KEY 존재 여부: ${{ secrets.AWS_SECRET_ACCESS_KEY != '' }}"
+        
         docker build \
           --target production \
           --build-arg VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }} \
@@ -65,82 +63,172 @@ jobs:
           --build-arg VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }} \
           --build-arg VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }} \
           --build-arg FIREBASE_SERVICE_ACCOUNT_KEY='${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}' \
-          -t $ECR_REGISTRY/$ECR_REPOSITORY:main-$IMAGE_TAG \
-          -t $ECR_REGISTRY/$ECR_REPOSITORY:main-latest \
+          --build-arg AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}' \
+          --build-arg AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}' \
+          -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+          -t $ECR_REGISTRY/$ECR_REPOSITORY:latest \
           .
         
         # ECR에 푸시
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:main-$IMAGE_TAG
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:main-latest
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
         
-        echo "main-image=$ECR_REGISTRY/$ECR_REPOSITORY:main-$IMAGE_TAG" >> $GITHUB_OUTPUT
+        echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-    # ========== 백그라운드 워커 빌드 및 배포 ==========
-    - name: Build and push background worker image
-      id: build-background-image
+    # 현재 태스크 정의 가져와서 새 이미지로 업데이트
+    - name: Get current task definition and update image
+      id: update-task-def
       env:
-        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-        IMAGE_TAG: ${{ github.sha }}
+        IMAGE_URI: ${{ steps.build-image.outputs.image }}
       run: |
-        # 백그라운드 워커 이미지 빌드
-        docker build \
-          --target celery-worker \
-          -f background/Dockerfile \
-          -t $ECR_REGISTRY/$ECR_REPOSITORY:background-$IMAGE_TAG \
-          -t $ECR_REGISTRY/$ECR_REPOSITORY:background-latest \
-          .
+        # 현재 태스크 정의 가져오기
+        aws ecs describe-task-definition \
+          --task-definition ${{ env.ECS_TASK_DEFINITION }} \
+          --query 'taskDefinition' \
+          --output json > current-task-def.json
         
-        # ECR에 푸시
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:background-$IMAGE_TAG
-        docker push $ECR_REGISTRY/$ECR_REPOSITORY:background-latest
+        # 새 이미지로 업데이트
+        cat current-task-def.json | jq \
+          --arg IMAGE_URI "$IMAGE_URI" \
+          '.containerDefinitions[0].image = $IMAGE_URI | 
+           del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .placementConstraints, .compatibilities, .registeredAt, .registeredBy)' \
+          > updated-task-def.json
         
-        echo "background-image=$ECR_REGISTRY/$ECR_REPOSITORY:background-$IMAGE_TAG" >> $GITHUB_OUTPUT
+        # 새로운 태스크 정의 등록
+        NEW_TASK_DEF_ARN=$(aws ecs register-task-definition \
+          --cli-input-json file://updated-task-def.json \
+          --query 'taskDefinition.taskDefinitionArn' \
+          --output text)
+        
+        echo "새로운 태스크 정의: $NEW_TASK_DEF_ARN"
+        echo "task-definition-arn=$NEW_TASK_DEF_ARN" >> $GITHUB_OUTPUT
 
-    # ========== 메인 앱 태스크 정의 업데이트 ==========
-    - name: Fill in main app task definition
-      id: main-task-def
-      uses: aws-actions/amazon-ecs-render-task-definition@v1
-      with:
-        task-definition: ${{ env.MAIN_TASK_DEFINITION }}
-        container-name: ${{ env.MAIN_CONTAINER_NAME }}
-        image: ${{ steps.build-main-image.outputs.main-image }}
+    # ECS 서비스 업데이트
+    - name: Deploy to ECS service
+      env:
+        TASK_DEFINITION_ARN: ${{ steps.update-task-def.outputs.task-definition-arn }}
+      run: |
+        echo "ECS 서비스 업데이트 시작..."
+        
+        # 서비스 업데이트
+        aws ecs update-service \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --service ${{ env.ECS_SERVICE }} \
+          --task-definition $TASK_DEFINITION_ARN \
+          --force-new-deployment
 
-    # ========== 백그라운드 워커 태스크 정의 업데이트 ==========
-    - name: Fill in background worker task definition
-      id: background-task-def
-      uses: aws-actions/amazon-ecs-render-task-definition@v1
-      with:
-        task-definition: ${{ env.BACKGROUND_TASK_DEFINITION }}
-        container-name: ${{ env.BACKGROUND_CONTAINER_NAME }}
-        image: ${{ steps.build-background-image.outputs.background-image }}
+        echo "서비스 업데이트 완료. 안정화 대기 중..."
 
-    # ========== 메인 앱 서비스 배포 ==========
-    - name: Deploy main app service
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-      with:
-        task-definition: ${{ steps.main-task-def.outputs.task-definition }}
-        service: ${{ env.MAIN_SERVICE }}
-        cluster: ${{ env.ECS_CLUSTER }}
-        wait-for-service-stability: true
+    # 배포 상태 확인
+    - name: Wait for service stability
+      run: |
+        echo "서비스 안정화 대기 중... (최대 10분)"
+        
+        aws ecs wait services-stable \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --services ${{ env.ECS_SERVICE }}
+        
+        echo "✅ 서비스가 안정화되었습니다!"
 
-    # ========== 백그라운드 워커 서비스 배포 ==========
+    # Background Worker 서비스 배포
     - name: Deploy background worker service
-      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
-      with:
-        task-definition: ${{ steps.background-task-def.outputs.task-definition }}
-        service: ${{ env.BACKGROUND_SERVICE }}
-        cluster: ${{ env.ECS_CLUSTER }}
-        wait-for-service-stability: true
+      run: |
+        echo "🔄 Background Worker 서비스 배포 시작..."
+
+        # Background Worker 서비스가 존재하는지 확인
+        if aws ecs describe-services \
+             --cluster ${{ env.ECS_CLUSTER }} \
+             --services market-timing-background-service \
+             --query 'services[0].serviceName' \
+             --output text 2>/dev/null | grep -q "market-timing-background-service"; then
+
+          echo "📦 Background Worker 서비스 업데이트 중..."
+          aws ecs update-service \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --service market-timing-background-service \
+            --force-new-deployment
+
+          echo "✅ Background Worker 서비스 업데이트 완료!"
+        else
+          echo "⚠️  Background Worker 서비스가 존재하지 않습니다. 수동으로 생성하세요."
+          echo "    서비스명: market-timing-background-service"
+          echo "    태스크 정의: market-timing-background"
+        fi
+
+    # 배포 결과 확인
+    - name: Get deployment status
+      if: always()
+      run: |
+        echo "📋 배포 결과 확인 중..."
+        
+        # 서비스 상태 확인
+        SERVICE_STATUS=$(aws ecs describe-services \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --services ${{ env.ECS_SERVICE }} \
+          --query 'services[0].{Status:status,RunningCount:runningCount,DesiredCount:desiredCount}' \
+          --output json)
+        
+        echo "서비스 상태: $SERVICE_STATUS"
+        
+        # 실행 중인 태스크 확인
+        RUNNING_TASKS=$(aws ecs list-tasks \
+          --cluster ${{ env.ECS_CLUSTER }} \
+          --service-name ${{ env.ECS_SERVICE }} \
+          --query 'taskArns' \
+          --output text)
+        
+        if [ -n "$RUNNING_TASKS" ]; then
+          echo "🎯 실행 중인 태스크: $RUNNING_TASKS"
+          
+          # 퍼블릭 IP 확인
+          TASK_ARN=$(echo $RUNNING_TASKS | awk '{print $1}')
+          PUBLIC_IP=$(aws ecs describe-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --tasks $TASK_ARN \
+            --query 'tasks[0].attachments[0].details[?name==`networkInterfaceId`].value' \
+            --output text | \
+            xargs -I {} aws ec2 describe-network-interfaces \
+            --network-interface-ids {} \
+            --query 'NetworkInterfaces[0].Association.PublicIp' \
+            --output text 2>/dev/null)
+          
+          if [ -n "$PUBLIC_IP" ] && [ "$PUBLIC_IP" != "None" ]; then
+            echo "🌐 FastAPI 애플리케이션 접속 정보:"
+            echo "   퍼블릭 IP: $PUBLIC_IP"
+            echo "   메인 URL: http://$PUBLIC_IP:8000"
+            echo "   헬스체크: http://$PUBLIC_IP:8000/health"
+            echo "   API 문서: http://$PUBLIC_IP:8000/docs"
+          fi
+        else
+          echo "❌ 실행 중인 태스크가 없습니다."
+        fi
+
+    # Background Worker 서비스 상태 확인
+    - name: Check background service status
+      run: |
+        echo "📋 Background Worker 서비스 상태 확인..."
+
+        if aws ecs describe-services \
+             --cluster ${{ env.ECS_CLUSTER }} \
+             --services market-timing-background-service \
+             --query 'services[0].{Status:status,RunningCount:runningCount,DesiredCount:desiredCount}' \
+             --output json 2>/dev/null; then
+          echo "✅ Background Worker 서비스 상태 확인 완료"
+        else
+          echo "⚠️  Background Worker 서비스 상태를 확인할 수 없습니다."
+        fi
 
     - name: Deploy status notification
       if: always()
       run: |
         if [ "${{ job.status }}" == "success" ]; then
-          echo "✅ 모든 서비스 배포가 성공적으로 완료되었습니다!"
-          echo "🌐 메인 앱: ${{ env.MAIN_SERVICE }}"
-          echo "⚙️ 백그라운드 워커: ${{ env.BACKGROUND_SERVICE }}"
-          echo "🔍 AWS 콘솔에서 ECS 서비스 상태를 확인하세요."
+          echo "✅ 전체 애플리케이션 배포가 성공적으로 완료되었습니다!"
+          echo "📦 배포된 서비스:"
+          echo "   • FastAPI 메인 애플리케이션"
+          echo "   • Background Worker (데이터 수집)"
+          echo "🔍 AWS ECS 콘솔에서 서비스 상태를 확인하세요."
         else
           echo "❌ 배포 중 오류가 발생했습니다."
           echo "🔍 자세한 오류는 Actions 로그를 확인하세요."
+          exit 1
         fi
