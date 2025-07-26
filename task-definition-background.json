@@ -1,0 +1,102 @@
+{
+  "family": "market-timing-background",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::692631066742:role/ecsTaskExecutionRole-market-timing-calendar",
+  "taskRoleArn": "arn:aws:iam::692631066742:role/ecsTaskRole-market-timing-calendar",
+  "containerDefinitions": [
+    {
+      "name": "market-timing-background",
+      "image": "692631066742.dkr.ecr.ap-northeast-2.amazonaws.com/market-timing-calendar:background-latest",
+      "essential": true,
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/market-timing-calendar",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "background-worker"
+        }
+      },
+      "environment": [
+        {
+          "name": "PYTHONPATH",
+          "value": "/app"
+        },
+        {
+          "name": "REDIS_URL",
+          "value": "redis://market-timing-calendar-redis.bzqsot.0001.apn2.cache.amazonaws.com:6379/0"
+        },
+        {
+          "name": "ACTIVE_LLM_PROVIDER",
+          "value": "anthropic"
+        },
+        {
+          "name": "ACTIVE_LLM_MODEL",
+          "value": "claude-3-5-sonnet-latest"
+        },
+        {
+          "name": "LLM_BATCH_SIZE",
+          "value": "10"
+        },
+        {
+          "name": "LLM_API_DELAY",
+          "value": "0.5"
+        },
+        {
+          "name": "LLM_MAX_RETRIES",
+          "value": "3"
+        },
+        {
+          "name": "LANGFUSE_PUBLIC_KEY",
+          "value": "pk-lf-cc5cfed2-fc8a-41cb-82da-ffaed2742cdb"
+        },
+        {
+          "name": "LANGFUSE_SECRET_KEY",
+          "value": "sk-lf-c6b6a352-d2ad-462a-866f-35e5ad7d05f1"
+        },
+        {
+          "name": "LANGFUSE_HOST",
+          "value": "https://us.cloud.langfuse.com"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/database-url"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/openai-api-key"
+        },
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/anthropic-api-key"
+        },
+        {
+          "name": "FRED_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/fred-api-key"
+        },
+        {
+          "name": "YAHOO_FINANCE_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/yahoo-finance-api-key"
+        },
+        {
+          "name": "KOREA_BANK_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/korea-bank-api-key"
+        }
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "celery -A background.celery_app inspect ping || exit 1"
+        ],
+        "interval": 60,
+        "timeout": 10,
+        "retries": 3,
+        "startPeriod": 120
+      }
+    }
+  ]
+}

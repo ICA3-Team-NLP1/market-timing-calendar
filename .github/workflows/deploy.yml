@@ -1,0 +1,146 @@
+name: Deploy to Amazon ECS
+
+on:
+  push:
+    branches: [ main, feature/add_github_action ]
+  pull_request:
+    branches: [ main ]
+    types: [ closed ]
+
+env:
+  AWS_REGION: ap-northeast-2
+  ECR_REPOSITORY: market-timing-calendar
+  ECS_CLUSTER: market-timing-calendar
+  
+  # 메인 앱 (Frontend + Backend)
+  MAIN_SERVICE: market-timing-calendar-service
+  MAIN_TASK_DEFINITION: task-definition-main.json
+  MAIN_CONTAINER_NAME: market-timing-calendar
+  
+  # 백그라운드 워커 (Celery)
+  BACKGROUND_SERVICE: market-timing-background-service
+  BACKGROUND_TASK_DEFINITION: task-definition-background.json
+  BACKGROUND_CONTAINER_NAME: market-timing-background
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy Multi-Service to ECS
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true || github.event_name == 'push'
+    environment: production
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Configure AWS credentials
+      uses: aws-actions/configure-aws-credentials@v4
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ env.AWS_REGION }}
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    # ========== 메인 앱 빌드 및 배포 ==========
+    - name: Build and push main app image
+      id: build-main-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # 메인 앱 이미지 빌드 (production 스테이지)
+        docker build \
+          --target production \
+          --build-arg VITE_FIREBASE_API_KEY=${{ secrets.VITE_FIREBASE_API_KEY }} \
+          --build-arg VITE_FIREBASE_AUTH_DOMAIN=${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }} \
+          --build-arg VITE_FIREBASE_PROJECT_ID=${{ secrets.VITE_FIREBASE_PROJECT_ID }} \
+          --build-arg VITE_FIREBASE_STORAGE_BUCKET=${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }} \
+          --build-arg VITE_FIREBASE_MESSAGING_SENDER_ID=${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }} \
+          --build-arg VITE_FIREBASE_APP_ID=${{ secrets.VITE_FIREBASE_APP_ID }} \
+          --build-arg VITE_FIREBASE_MEASUREMENT_ID=${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }} \
+          --build-arg FIREBASE_SERVICE_ACCOUNT_KEY='${{ secrets.FIREBASE_SERVICE_ACCOUNT_KEY }}' \
+          -t $ECR_REGISTRY/$ECR_REPOSITORY:main-$IMAGE_TAG \
+          -t $ECR_REGISTRY/$ECR_REPOSITORY:main-latest \
+          .
+        
+        # ECR에 푸시
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:main-$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:main-latest
+        
+        echo "main-image=$ECR_REGISTRY/$ECR_REPOSITORY:main-$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    # ========== 백그라운드 워커 빌드 및 배포 ==========
+    - name: Build and push background worker image
+      id: build-background-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        # 백그라운드 워커 이미지 빌드
+        docker build \
+          --target celery-worker \
+          -f background/Dockerfile \
+          -t $ECR_REGISTRY/$ECR_REPOSITORY:background-$IMAGE_TAG \
+          -t $ECR_REGISTRY/$ECR_REPOSITORY:background-latest \
+          .
+        
+        # ECR에 푸시
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:background-$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY:background-latest
+        
+        echo "background-image=$ECR_REGISTRY/$ECR_REPOSITORY:background-$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+    # ========== 메인 앱 태스크 정의 업데이트 ==========
+    - name: Fill in main app task definition
+      id: main-task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: ${{ env.MAIN_TASK_DEFINITION }}
+        container-name: ${{ env.MAIN_CONTAINER_NAME }}
+        image: ${{ steps.build-main-image.outputs.main-image }}
+
+    # ========== 백그라운드 워커 태스크 정의 업데이트 ==========
+    - name: Fill in background worker task definition
+      id: background-task-def
+      uses: aws-actions/amazon-ecs-render-task-definition@v1
+      with:
+        task-definition: ${{ env.BACKGROUND_TASK_DEFINITION }}
+        container-name: ${{ env.BACKGROUND_CONTAINER_NAME }}
+        image: ${{ steps.build-background-image.outputs.background-image }}
+
+    # ========== 메인 앱 서비스 배포 ==========
+    - name: Deploy main app service
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.main-task-def.outputs.task-definition }}
+        service: ${{ env.MAIN_SERVICE }}
+        cluster: ${{ env.ECS_CLUSTER }}
+        wait-for-service-stability: true
+
+    # ========== 백그라운드 워커 서비스 배포 ==========
+    - name: Deploy background worker service
+      uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+      with:
+        task-definition: ${{ steps.background-task-def.outputs.task-definition }}
+        service: ${{ env.BACKGROUND_SERVICE }}
+        cluster: ${{ env.ECS_CLUSTER }}
+        wait-for-service-stability: true
+
+    - name: Deploy status notification
+      if: always()
+      run: |
+        if [ "${{ job.status }}" == "success" ]; then
+          echo "✅ 모든 서비스 배포가 성공적으로 완료되었습니다!"
+          echo "🌐 메인 앱: ${{ env.MAIN_SERVICE }}"
+          echo "⚙️ 백그라운드 워커: ${{ env.BACKGROUND_SERVICE }}"
+          echo "🔍 AWS 콘솔에서 ECS 서비스 상태를 확인하세요."
+        else
+          echo "❌ 배포 중 오류가 발생했습니다."
+          echo "🔍 자세한 오류는 Actions 로그를 확인하세요."
+        fi

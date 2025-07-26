@@ -1,0 +1,116 @@
+{
+  "family": "market-timing-app",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "1024",
+  "memory": "2048",
+  "executionRoleArn": "arn:aws:iam::692631066742:role/ecsTaskExecutionRole-market-timing-calendar",
+  "taskRoleArn": "arn:aws:iam::692631066742:role/ecsTaskRole-market-timing-calendar",
+  "containerDefinitions": [
+    {
+      "name": "market-timing-calendar",
+      "image": "692631066742.dkr.ecr.ap-northeast-2.amazonaws.com/market-timing-calendar:main-latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/market-timing-calendar",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "main-app"
+        }
+      },
+      "environment": [
+        {
+          "name": "ENVIRONMENT",
+          "value": "production"
+        },
+        {
+          "name": "PORT",
+          "value": "8000"
+        },
+        {
+          "name": "NODE_ENV",
+          "value": "production"
+        },
+        {
+          "name": "PYTHONPATH",
+          "value": "/app"
+        },
+        {
+          "name": "GOOGLE_REDIRECT_URI",
+          "value": "https://YOUR_DOMAIN/auth/callback"
+        },
+        {
+          "name": "LANGFUSE_PUBLIC_KEY",
+          "value": "pk-lf-cc5cfed2-fc8a-41cb-82da-ffaed2742cdb"
+        },
+        {
+          "name": "LANGFUSE_SECRET_KEY",
+          "value": "sk-lf-c6b6a352-d2ad-462a-866f-35e5ad7d05f1"
+        },
+        {
+          "name": "LANGFUSE_HOST",
+          "value": "https://us.cloud.langfuse.com"
+        },
+        {
+          "name": "MEM0_API_KEY",
+          "value": "m0-nPY5Q6CscEWDneNbwGMwPVcvBraco84f6kDBps83"
+        },
+        {
+          "name": "ACTIVE_LLM_PROVIDER",
+          "value": "openai"
+        },
+        {
+          "name": "ACTIVE_LLM_MODEL",
+          "value": "gpt-4-turbo"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/database-url"
+        },
+        {
+          "name": "GOOGLE_CLIENT_ID",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/google-client-id"
+        },
+        {
+          "name": "GOOGLE_CLIENT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/google-client-secret"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/jwt-secret"
+        },
+        {
+          "name": "ENCRYPTION_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/encryption-key"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/openai-api-key"
+        },
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/anthropic-api-key"
+        }
+      ],
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8000/health || exit 1"
+        ],
+        "interval": 30,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 60
+      }
+    }
+  ]
+}
