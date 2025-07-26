@@ -130,8 +130,65 @@ jobs:
         
         echo "✅ 서비스가 안정화되었습니다!"
 
+    # Background Worker 이미지 빌드 및 배포
+    - name: Build and push background worker image
+      id: build-background-image
+      env:
+        ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+        IMAGE_TAG: ${{ github.sha }}
+      run: |
+        echo "🔨 Background Worker 이미지 빌드 시작..."
+        
+        # Background Worker 이미지 빌드
+        docker build \
+          -f background/Dockerfile \
+          --build-arg AWS_ACCESS_KEY_ID='${{ secrets.AWS_ACCESS_KEY_ID }}' \
+          --build-arg AWS_SECRET_ACCESS_KEY='${{ secrets.AWS_SECRET_ACCESS_KEY }}' \
+          -t $ECR_REGISTRY/$ECR_REPOSITORY-background:$IMAGE_TAG \
+          -t $ECR_REGISTRY/$ECR_REPOSITORY-background:latest \
+          .
+        
+        # ECR에 푸시
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY-background:$IMAGE_TAG
+        docker push $ECR_REGISTRY/$ECR_REPOSITORY-background:latest
+        
+        echo "background-image=$ECR_REGISTRY/$ECR_REPOSITORY-background:latest" >> $GITHUB_OUTPUT
+        echo "✅ Background Worker 이미지 빌드 및 푸시 완료!"
+
+    # Background Worker 태스크 정의 업데이트
+    - name: Update background worker task definition
+      id: update-background-task-def
+      env:
+        BACKGROUND_IMAGE_URI: ${{ steps.build-background-image.outputs.background-image }}
+      run: |
+        echo "📝 Background Worker 태스크 정의 업데이트 중..."
+        
+        # 현재 Background Worker 태스크 정의 가져오기
+        aws ecs describe-task-definition \
+          --task-definition market-timing-background \
+          --query 'taskDefinition' \
+          --output json > current-background-task-def.json
+        
+        # 새 이미지로 업데이트
+        cat current-background-task-def.json | jq \
+          --arg IMAGE_URI "$BACKGROUND_IMAGE_URI" \
+          '.containerDefinitions[0].image = $IMAGE_URI | 
+           del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .placementConstraints, .compatibilities, .registeredAt, .registeredBy)' \
+          > updated-background-task-def.json
+        
+        # 새로운 태스크 정의 등록
+        NEW_BACKGROUND_TASK_DEF_ARN=$(aws ecs register-task-definition \
+          --cli-input-json file://updated-background-task-def.json \
+          --query 'taskDefinition.taskDefinitionArn' \
+          --output text)
+        
+        echo "새로운 Background Worker 태스크 정의: $NEW_BACKGROUND_TASK_DEF_ARN"
+        echo "background-task-definition-arn=$NEW_BACKGROUND_TASK_DEF_ARN" >> $GITHUB_OUTPUT
+
     # Background Worker 서비스 배포
     - name: Deploy background worker service
+      env:
+        BACKGROUND_TASK_DEFINITION_ARN: ${{ steps.update-background-task-def.outputs.background-task-definition-arn }}
       run: |
         echo "🔄 Background Worker 서비스 배포 시작..."
 
@@ -146,9 +203,18 @@ jobs:
           aws ecs update-service \
             --cluster ${{ env.ECS_CLUSTER }} \
             --service market-timing-background-service \
+            --task-definition $BACKGROUND_TASK_DEFINITION_ARN \
             --force-new-deployment
 
           echo "✅ Background Worker 서비스 업데이트 완료!"
+          
+          # 서비스 안정화 대기
+          echo "⏳ Background Worker 서비스 안정화 대기 중..."
+          aws ecs wait services-stable \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services market-timing-background-service
+          
+          echo "✅ Background Worker 서비스가 안정화되었습니다!"
         else
           echo "⚠️  Background Worker 서비스가 존재하지 않습니다. 수동으로 생성하세요."
           echo "    서비스명: market-timing-background-service"
