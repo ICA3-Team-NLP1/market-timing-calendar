@@ -38,3 +38,20 @@ class SafetyCheckRequest(BaseModel):
     """컨텐츠 안전성 검사 요청"""
 
     content: str  # 검사할 컨텐츠
+
+
+class RecommendQuestionRequest(BaseModel):
+    """추천 질문 생성 요청"""
+
+    event_description: str  # 이벤트 설명 (30자 이내)
+    question_count: int = 3  # 생성할 질문 개수 (기본값: 3)
+    string_length: int = 15  # 질문 길이 제한 (기본값: 15자)
+    session_id: str | None = None  # 세션 ID (새로운 대화면 None)
+
+
+class RecommendQuestionResponse(BaseModel):
+    """추천 질문 생성 응답"""
+
+    questions: list[str]  # 생성된 추천 질문 목록
+    user_level: str  # 사용자 레벨
+    total_count: int  # 생성된 질문 개수
