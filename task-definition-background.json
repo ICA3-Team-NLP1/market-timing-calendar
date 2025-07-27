@@ -1,0 +1,53 @@
+{
+  "family": "market-timing-background",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::692631066742:role/ecsTaskExecutionRole-market-timing-calendar",
+  "taskRoleArn": "arn:aws:iam::692631066742:role/ecsTaskExecutionRole-market-timing-calendar",
+  "containerDefinitions": [
+    {
+      "name": "market-timing-background",
+      "image": "692631066742.dkr.ecr.ap-northeast-2.amazonaws.com/market-timing-calendar-background:latest",
+      "essential": true,
+      "workingDirectory": "/app",
+      "command": [
+        "celery",
+        "-A",
+        "background.celery_app",
+        "worker",
+        "--loglevel=info"
+      ],
+      "environment": [
+        {
+          "name": "PYTHONPATH",
+          "value": "/app/backend"
+        },
+        {
+          "name": "REDIS_URL",
+          "value": "redis://market-timing-calendar-redis.bzqsot.0001.apn2.cache.amazonaws.com:6379/0"
+        },
+        {
+          "name": "FASTAPI_ENV",
+          "value": "prod"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar-database-url"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "ecs/market-timing-calendar",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "background-celery"
+        }
+      },
+      "portMappings": []
+    }
+  ]
+} 

@@ -53,6 +53,12 @@ def create_app():
 
     db.init_db(settings.DB_INFO)
 
+    # 직접 헬스체크 엔드포인트 추가 (SPA fallback보다 먼저 등록)
+    @app.get("/health")
+    async def health_check():
+        """헬스체크 - 직접 경로"""
+        return {"status": "healthy", "service": "Market Timing Calendar", "version": "1.0.0"}
+
     # API 라우터 등록
     from app.api.index import router
     from app.api.v1.api import api_router as v1_api_router

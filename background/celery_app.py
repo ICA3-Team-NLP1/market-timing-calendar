@@ -16,6 +16,8 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # DB 초기화
+logger.info(f"DATABASE_URL: {os.getenv('DATABASE_URL', 'NOT_SET')}")
+logger.info(f"DB_INFO SQLALCHEMY_DATABASE_URL: {settings.DB_INFO.SQLALCHEMY_DATABASE_URL}")
 db.init_db(settings.DB_INFO)
 
 # 모델 import는 DB 초기화 후에 수행

@@ -97,11 +97,11 @@ class Settings(BaseSettings):
     FRED_API_KEY: str = ""
 
     # 데이터베이스 설정
-    DATABASE_URL: str = environ.get("DATABASE_URL")
+    DATABASE_URL: str = environ.get("DATABASE_URL", "")
     DB_INFO: DBConnection = DBConnection(SQLALCHEMY_DATABASE_URL=DATABASE_URL)
 
     # Redis 설정 (Celery용)
-    REDIS_URL: str = "redis://localhost:6379/0"
+    REDIS_URL: str = environ.get("REDIS_URL", "redis://localhost:6379/0")
 
     # Firebase 설정
     FIREBASE_SECRET_FILE_PATH: str = path.join(media_secret_dir, "firebase-key.json")
@@ -168,8 +168,13 @@ def get_settings():
     cfg_cls = dict(
         test=Settings,
         prod=ProdSettings,
+        production=ProdSettings,  # production 키 추가
     )
-    env = cfg_cls[environ.get("FASTAPI_ENV", "test")]()
+    env_name = environ.get("FASTAPI_ENV", "test")
+    if env_name not in cfg_cls:
+        print(f"⚠️ 알 수 없는 환경: {env_name}, test 환경으로 대체합니다.")
+        env_name = "test"
+    env = cfg_cls[env_name]()
     return env
 
 
