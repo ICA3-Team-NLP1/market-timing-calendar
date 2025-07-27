@@ -86,9 +86,14 @@ COPY --from=frontend-builder /app/frontend/dist ./static
 # 백엔드 코드 복사
 COPY backend/ ./
 
-# 비root 사용자 생성
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# 비root 사용자 생성 및 홈 디렉토리 설정
+RUN groupadd -r appuser && useradd -r -g appuser -m -d /home/appuser appuser
+RUN mkdir -p /home/appuser && chown -R appuser:appuser /home/appuser
 RUN chown -R appuser:appuser /app
+
+# mem0 데이터 디렉토리 생성 및 권한 설정
+RUN mkdir -p /app/mem0_data && chown -R appuser:appuser /app/mem0_data
+
 USER appuser
 
 EXPOSE 8000
