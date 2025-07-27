@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import Any
 from datetime import datetime
 from mem0 import Memory
@@ -13,6 +14,17 @@ class Mem0Service:
 
     def __init__(self):
         """mem0 설정 및 초기화"""
+        # mem0 라이브러리가 사용할 디렉토리 설정
+        mem0_data_dir = "/app/mem0_data"
+        os.environ["MEM0_DATA_DIR"] = mem0_data_dir
+        
+        # 디렉토리가 없으면 생성
+        try:
+            os.makedirs(mem0_data_dir, exist_ok=True)
+            logger.info(f"✅ mem0 데이터 디렉토리 생성/확인: {mem0_data_dir}")
+        except Exception as e:
+            logger.warning(f"⚠️ mem0 데이터 디렉토리 생성 실패: {e}")
+        
         self.config = {
             "llm": {
                 "provider": "openai",
