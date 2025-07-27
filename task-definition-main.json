@@ -1,0 +1,100 @@
+{
+  "family": "market-timing-app",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::692631066742:role/ecsTaskExecutionRole-market-timing-calendar",
+  "taskRoleArn": "arn:aws:iam::692631066742:role/ecsTaskExecutionRole-market-timing-calendar",
+  "containerDefinitions": [
+    {
+      "name": "market-timing-calendar",
+      "image": "692631066742.dkr.ecr.ap-northeast-2.amazonaws.com/market-timing-calendar:latest",
+      "essential": true,
+      "workingDirectory": "/app",
+      "command": [
+        "python",
+        "startup.py"
+      ],
+      "environment": [
+        {
+          "name": "PYTHONPATH",
+          "value": "/app"
+        }
+      ],
+      "secrets": [
+        {
+          "name": "DATABASE_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/database-url"
+        },
+        {
+          "name": "REDIS_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/redis-url"
+        },
+        {
+          "name": "FRED_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/fred-api-key"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/openai-api-key"
+        },
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/anthropic-api-key"
+        },
+        {
+          "name": "ACTIVE_LLM_PROVIDER",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/active-llm-provider"
+        },
+        {
+          "name": "ACTIVE_LLM_MODEL",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/active-llm-model"
+        },
+        {
+          "name": "LANGFUSE_PUBLIC_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/langfuse-public-key"
+        },
+        {
+          "name": "LANGFUSE_SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/langfuse-secret-key"
+        },
+        {
+          "name": "LANGFUSE_HOST",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/langfuse-host"
+        },
+        {
+          "name": "FASTAPI_ENV",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/fastapi-env"
+        },
+        {
+          "name": "MEM0_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/mem0-api-key"
+        },
+        {
+          "name": "JWT_SECRET",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/jwt-secret-cd5mGk"
+        },
+        {
+          "name": "ENCRYPTION_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/encryption-key"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "ecs/market-timing-calendar",
+          "awslogs-region": "ap-northeast-2",
+          "awslogs-stream-prefix": "fastapi-main-app"
+        }
+      },
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "hostPort": 8000,
+          "protocol": "tcp"
+        }
+      ]
+    }
+  ]
+} 
