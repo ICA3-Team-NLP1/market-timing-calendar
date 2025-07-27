@@ -28,7 +28,8 @@ WORKDIR /app/frontend
 COPY frontend/package*.json ./
 RUN npm ci
 COPY frontend/ ./
-RUN npm run build
+# 클라이언트만 빌드 (Express 서버는 Docker에서 불필요)
+RUN npm run build:client
 
 # ===== Stage 2: Python 의존성 =====
 FROM python:3.11-slim AS python-deps
@@ -50,8 +51,8 @@ WORKDIR /app
 COPY --from=python-deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=python-deps /usr/local/bin /usr/local/bin
 
-# React 빌드 파일 복사
-COPY --from=frontend-builder /app/frontend/dist ./static
+# React 빌드 파일 복사 (새로운 구조: dist/public)
+COPY --from=frontend-builder /app/frontend/dist/public ./static
 
 # 백엔드 코드 복사
 COPY backend/ ./
@@ -80,8 +81,8 @@ WORKDIR /app
 COPY --from=python-deps /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
 COPY --from=python-deps /usr/local/bin /usr/local/bin
 
-# React 빌드 파일 복사
-COPY --from=frontend-builder /app/frontend/dist ./static
+# React 빌드 파일 복사 (새로운 구조: dist/public)
+COPY --from=frontend-builder /app/frontend/dist/public ./static
 
 # 백엔드 코드 복사
 COPY backend/ ./

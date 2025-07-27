@@ -1,0 +1,17 @@
+# 프론트엔드 관련
+frontend_old/
+frontend/node_modules/
+frontend/dist/
+
+# 백엔드 관련
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+backend/secrets/
+
+# 기타
+.git/
+.gitignore
+README.md
+*.log
+.env 

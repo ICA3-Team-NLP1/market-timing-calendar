@@ -114,8 +114,8 @@ services:
       - YAHOO_FINANCE_API_KEY=${YAHOO_FINANCE_API_KEY:-your_yahoo_finance_key}
       - KOREA_BANK_API_KEY=${KOREA_BANK_API_KEY:-your_korea_bank_api_key}
       # LLM 설정
-      - ACTIVE_LLM_PROVIDER=${ACTIVE_LLM_PROVIDER:-anthropic}
-      - ACTIVE_LLM_MODEL=${ACTIVE_LLM_MODEL:-claude-3-5-sonnet-latest}
+      - ACTIVE_LLM_PROVIDER=${ACTIVE_LLM_PROVIDER:-openai}
+      - ACTIVE_LLM_MODEL=${ACTIVE_LLM_MODEL:-gpt-4-turbo}
       - LLM_BATCH_SIZE=${LLM_BATCH_SIZE:-10}
       - LLM_API_DELAY=${LLM_API_DELAY:-0.5}
       - LLM_MAX_RETRIES=${LLM_MAX_RETRIES:-3}
