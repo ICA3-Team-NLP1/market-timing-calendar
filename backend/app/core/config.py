@@ -1,9 +1,11 @@
+import base64
+import json
 from dotenv import load_dotenv
 from functools import lru_cache
 from os import path, environ
 from pydantic import BaseModel
 from pydantic_settings import BaseSettings
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 from ..utils.utility import load_json_file
 from ..constants import UserLevel
@@ -103,9 +105,64 @@ class Settings(BaseSettings):
     # Redis 설정 (Celery용)
     REDIS_URL: str = environ.get("REDIS_URL", "redis://localhost:6379/0")
 
-    # Firebase 설정
+    # Firebase 설정 (선택적)
     FIREBASE_SECRET_FILE_PATH: str = path.join(media_secret_dir, "firebase-key.json")
-    FIREBASE_SECRET_FILE: dict = load_json_file(FIREBASE_SECRET_FILE_PATH)
+    FIREBASE_SECRET_FILE: Optional[Dict] = None
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        # Firebase 설정을 안전하게 로드 (실패해도 앱 시작)
+        try:
+            self.FIREBASE_SECRET_FILE = self._load_firebase_config()
+        except Exception as e:
+            print(f"⚠️ Firebase 설정 로드 실패 (앱은 계속 시작됩니다): {e}")
+            self.FIREBASE_SECRET_FILE = None
+
+    def _load_firebase_config(self) -> Optional[Dict]:
+        """
+        Firebase 설정을 안전하게 로드합니다.
+        
+        우선순위:
+        1. 환경변수 FIREBASE_SERVICE_ACCOUNT_KEY (base64 인코딩된 JSON)
+        2. 로컬 파일 ./secrets/firebase-key.json
+        3. None (개발 모드)
+        """
+
+        # 1. base64 인코딩된 환경변수에서 Firebase 키 확인
+        firebase_key_base64 = environ.get("FIREBASE_SERVICE_ACCOUNT_KEY")
+        print(f"🔍 FIREBASE_SERVICE_ACCOUNT_KEY 존재: {'YES' if firebase_key_base64 else 'NO'}")
+
+        if firebase_key_base64:
+            try:
+                # base64 디코딩
+                firebase_key_json = base64.b64decode(firebase_key_base64).decode('utf-8')
+
+                # JSON 파싱
+                firebase_config = json.loads(firebase_key_json)
+
+                print("✅ Firebase 설정을 base64 환경변수에서 로드했습니다")
+                return firebase_config
+
+            except (base64.binascii.Error, UnicodeDecodeError) as e:
+                print(f"❌ base64 디코딩 실패: {e}")
+            except json.JSONDecodeError as e:
+                print(f"❌ base64 디코딩 후 JSON 파싱 실패: {e}")
+
+        # 2. 로컬 파일에서 Firebase 키 확인
+        if path.exists(self.FIREBASE_SECRET_FILE_PATH):
+            try:
+                firebase_config = load_json_file(self.FIREBASE_SECRET_FILE_PATH)
+
+                if firebase_config:
+                    print("✅ Firebase 설정을 로컬 파일에서 로드했습니다")
+                    return firebase_config
+
+            except Exception as e:
+                print(f"❌ 로컬 Firebase 파일 읽기 실패: {e}")
+
+        # 3. Firebase 설정 없음 (개발 모드)
+        print("⚠️ Firebase 설정을 찾을 수 없습니다. 개발 모드로 실행합니다.")
+        return None
 
     # AI 모델 설정
     ACTIVE_LLM_PROVIDER: str = ""  # "openai", "anthropic", ... (빈 문자열이면 자동으로 openai 사용)
