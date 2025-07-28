@@ -59,7 +59,7 @@ def _build_messages(
     return messages
 
 
-@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+@ observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/conversation")
 async def conversation(
     req: ConversationRequest,
@@ -189,7 +189,7 @@ async def conversation(
         raise HTTPException(status_code=500, detail="대화 처리 중 오류가 발생했습니다.")
 
 
-@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+@ observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/event/explain")
 async def explain_event(
     req: EventExplainRequest,
@@ -255,7 +255,7 @@ async def explain_event(
         raise HTTPException(status_code=500, detail="이벤트 설명 처리 중 오류가 발생했습니다.")
 
 
-@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+@ observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/safety/check")
 async def check_content_safety(req: SafetyCheckRequest, db_user: Users = Depends(get_or_create_user)):
     """컨텐츠 안전성 검사
@@ -364,7 +364,7 @@ async def generate_recommend_question(request: RecommendQuestionRequest, db_user
         RecommendQuestionResponse: 생성된 추천 질문 목록
     """
     try:
-        user_level = UserLevel.ADVANCED
+        user_level = UserLevel(db_user.level)
 
         # 추천 질문 생성 프롬프트 구성
         prompt = get_recommend_question_prompt(
@@ -377,7 +377,7 @@ async def generate_recommend_question(request: RecommendQuestionRequest, db_user
         langfuse_manager = LangfuseFactory.create_app_manager(user=db_user, session_id=request.session_id)
         llm_client = LLMClient(user=db_user, langfuse_manager=langfuse_manager)
 
-        response = await llm_client.chat(messages=[{"role": "user", "content": prompt}])
+        response = await llm_client.chat(messages=[{"role": "system", "content": prompt}])
 
         if not response:
             logger.warning("LLM 응답이 비어있음")
@@ -393,7 +393,9 @@ async def generate_recommend_question(request: RecommendQuestionRequest, db_user
                 filtered_questions.append(question)
             else:
                 # 길이 초과 시 자르기
-                truncated = question[: request.string_length - 1] + "?"
+                truncated = question[: request.string_length - 1]
+                if not truncated.endswith("?"):
+                    truncated += "?"
                 filtered_questions.append(truncated)
                 logger.debug(f"질문 길이 초과로 자름: {question} → {truncated}")
 

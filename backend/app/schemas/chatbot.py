@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, constr
 
 
 class ChatMessage(BaseModel):
@@ -43,7 +43,7 @@ class SafetyCheckRequest(BaseModel):
 class RecommendQuestionRequest(BaseModel):
     """추천 질문 생성 요청"""
 
-    event_description: str  # 이벤트 설명 (30자 이내)
+    event_description: constr(max_length=30)  # 이벤트 설명 (30자 이내)
     question_count: int = 3  # 생성할 질문 개수 (기본값: 3)
     string_length: int = 15  # 질문 길이 제한 (기본값: 15자)
     session_id: str | None = None  # 세션 ID (새로운 대화면 None)
