@@ -1,0 +1,16 @@
+modules = ["nodejs-20"]
+[workflows]
+runButton = "Run Frontend"
+
+[[workflows.workflow]]
+name = "Run Frontend"
+author = 2919050
+mode = "sequential"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd frontend && npm run dev"
+
+[[ports]]
+localPort = 5000
+externalPort = 80

@@ -1,6 +1,5 @@
 import React, { useEffect } from "react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { FomcResultsSection } from "./sections/FomcResultsSection";
 import { InsightsSection } from "./sections/InsightsSection";
 import { UpcomingEventsSection } from "./sections/UpcomingEventsSection";
 import { AppHeader } from "@/components/common/AppHeader";
@@ -41,23 +40,12 @@ export const MainPage = (): JSX.Element => {
         {/* Main content container */}
         <div className="relative w-full flex flex-col pt-[104px] pb-[90px]">{/* increased padding-top for fixed header and bottom for chat input */}
 
-          {/* FOMC Results Section */}
-          <FomcResultsSection />
-
-          {/* FOMC Alert */}
-          <div className="px-6 mt-2">
-            <Alert className="bg-[#1a1a1a] text-white border-none rounded-md py-2.5 px-4">
-              <AlertDescription className="[font-family:'Pretendard-Regular',Helvetica] font-normal text-white text-base tracking-[0] leading-6">
-                5월 FOMC에서 금리를 동결했고 연준 위원들은 올해 두 번의
-                금리인하를 전망했어요
-              </AlertDescription>
-            </Alert>
-          </div>
-
           {/* Upcoming Events Section */}
           <div className="mt-4">
             <UpcomingEventsSection />
           </div>
+
+          
 
           {/* Insights Section */}
           <div className="mt-4 mb-20">
