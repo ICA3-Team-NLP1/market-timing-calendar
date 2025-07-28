@@ -655,3 +655,34 @@ export const explainEvent = async (eventId, safetyLevel = "moderate") => {
 
     return response; // 스트리밍 응답 반환
 };
+
+// 🔧 추천 질문 생성 API
+export const generateRecommendQuestion = async (
+    eventDescription,
+    questionCount = 3,
+    stringLength = 15,
+    sessionId = null,
+) => {
+    if (window._replit) {
+        // 더미 응답
+        return {
+            questions: [
+                "금리 인하가 왜 중요한가요?",
+                "FOMC가 뭐예요?",
+                "연준이 뭐예요?",
+            ],
+            user_level: "BEGINNER",
+            total_count: 3,
+        };
+    }
+
+    return await apiCall(`${API_BASE_URL}/api/v1/chatbot/recommend`, {
+        method: "POST",
+        body: JSON.stringify({
+            event_description: eventDescription,
+            question_count: questionCount,
+            string_length: stringLength,
+            session_id: sessionId,
+        }),
+    });
+};
