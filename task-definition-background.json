@@ -25,10 +25,6 @@
           "value": "/app/backend"
         },
         {
-          "name": "REDIS_URL",
-          "value": "redis://market-timing-calendar-redis.bzqsot.0001.apn2.cache.amazonaws.com:6379/0"
-        },
-        {
           "name": "FASTAPI_ENV",
           "value": "prod"
         }
@@ -37,6 +33,10 @@
         {
           "name": "DATABASE_URL",
           "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/database-url"
+        },
+        {
+          "name": "REDIS_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/redis-url"
         }
       ],
       "logConfiguration": {
