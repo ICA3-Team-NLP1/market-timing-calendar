@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_or_create_user, get_session
 from app.models.users import Users
 from app.utils.llm_client import LLMClient
-from app.core.prompts import SYSTEM_PROMPTS, EVENT_EXPLAIN_PROMPTS
+from app.core.prompts import SYSTEM_PROMPTS, EVENT_EXPLAIN_PROMPTS, get_recommend_question_prompt
 from app.constants import UserLevel, ChatMessageRole
 from app.crud.crud_events import crud_events
 from app.crud.crud_chat import crud_chat_sessions
@@ -59,7 +59,7 @@ def _build_messages(
     return messages
 
 
-@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+@ observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/conversation")
 async def conversation(
     req: ConversationRequest,
@@ -189,7 +189,7 @@ async def conversation(
         raise HTTPException(status_code=500, detail="대화 처리 중 오류가 발생했습니다.")
 
 
-@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+@ observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/event/explain")
 async def explain_event(
     req: EventExplainRequest,
@@ -255,7 +255,7 @@ async def explain_event(
         raise HTTPException(status_code=500, detail="이벤트 설명 처리 중 오류가 발생했습니다.")
 
 
-@observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
+@ observe() if LANGFUSE_OBSERVE_AVAILABLE else lambda func: func
 @chatbot_router.post("/safety/check")
 async def check_content_safety(req: SafetyCheckRequest, db_user: Users = Depends(get_or_create_user)):
     """컨텐츠 안전성 검사
@@ -348,3 +348,68 @@ async def reset_user_memory(is_mem0_api: bool = True, db_user: Users = Depends(g
     except Exception as e:
         logger.error(f"❌ 메모리 초기화 실패: {e}")
         raise HTTPException(status_code=500, detail="메모리 초기화 중 오류가 발생했습니다.")
+
+
+@chatbot_router.post("/recommend", response_model=RecommendQuestionResponse)
+async def generate_recommend_question(request: RecommendQuestionRequest, db_user: Users = Depends(get_or_create_user)):
+    """추천 질문 생성 API
+
+    이벤트에 대한 사용자 레벨별 추천 질문을 생성합니다.
+
+    Args:
+        request: 추천 질문 생성 요청 (이벤트 설명, 질문 개수, 길이 제한)
+        db_user: 현재 로그인한 사용자
+
+    Returns:
+        RecommendQuestionResponse: 생성된 추천 질문 목록
+    """
+    try:
+        user_level = UserLevel(db_user.level)
+
+        # 추천 질문 생성 프롬프트 구성
+        prompt = get_recommend_question_prompt(
+            level=user_level,
+            event_description=request.event_description,
+            question_count=request.question_count,
+            string_length=request.string_length,
+        )
+
+        langfuse_manager = LangfuseFactory.create_app_manager(user=db_user, session_id=request.session_id)
+        llm_client = LLMClient(user=db_user, langfuse_manager=langfuse_manager)
+
+        response = await llm_client.chat(messages=[{"role": "system", "content": prompt}])
+
+        if not response:
+            logger.warning("LLM 응답이 비어있음")
+            raise HTTPException(status_code=500, detail="추천 질문 생성에 실패했습니다.")
+
+        # 생성된 질문들을 줄바꿈으로 분리
+        questions = [q.strip() for q in response.strip().split("\n") if q.strip()]
+
+        # 질문 길이 제한 적용
+        filtered_questions = []
+        for question in questions:
+            if len(question) <= request.string_length:
+                filtered_questions.append(question)
+            else:
+                # 길이 초과 시 자르기
+                truncated = question[: request.string_length - 1]
+                if not truncated.endswith("?"):
+                    truncated += "?"
+                filtered_questions.append(truncated)
+                logger.debug(f"질문 길이 초과로 자름: {question} → {truncated}")
+
+        # 요청된 개수만큼만 반환
+        final_questions = filtered_questions[: request.question_count]
+
+        logger.info(f"추천 질문 생성 완료: {len(final_questions)}개")
+
+        return RecommendQuestionResponse(
+            questions=final_questions, user_level=user_level.value, total_count=len(final_questions)
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"추천 질문 생성 실패: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="추천 질문 생성 중 오류가 발생했습니다.")
