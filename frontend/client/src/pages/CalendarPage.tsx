@@ -21,20 +21,21 @@ export const CalendarPage = (): JSX.Element => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("all");
   const [userLevel, setUserLevel] = useState("BEGINNER");
+  const [isInitialLoad, setIsInitialLoad] = useState(true); // 페이지 초기 로드 여부 추적
   const { showLevelUpModal } = useLevelUp();
 
   // 인증 상태 확인 및 리다이렉트
   useEffect(() => {
     console.log('📅 CalendarPage useEffect 실행');
-    
+
     // 더미 모드 체크
     const isDummyMode = window._replit === true;
     const dummyUser = localStorage.getItem('dummyUser');
-    
+
     console.log('📅 CalendarPage 더미 모드 체크:');
     console.log('📅 isDummyMode:', isDummyMode);
     console.log('📅 dummyUser 존재:', !!dummyUser);
-    
+
     if (isDummyMode && dummyUser) {
       console.log('📅 더미 모드 감지 - Firebase 리스너 생략');
       return;
@@ -65,10 +66,12 @@ export const CalendarPage = (): JSX.Element => {
   };
 
   const handlePrevMonth = () => {
+    setIsInitialLoad(false); // 네비게이션으로 월 변경 시 초기 로드가 아님을 표시
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() - 1));
   };
 
   const handleNextMonth = () => {
+    setIsInitialLoad(false); // 네비게이션으로 월 변경 시 초기 로드가 아님을 표시
     setCurrentDate(new Date(currentDate.getFullYear(), currentDate.getMonth() + 1));
   };
 
@@ -97,6 +100,85 @@ export const CalendarPage = (): JSX.Element => {
     }
   };
 
+  // 자동 스크롤 함수
+  const autoScrollToRelevantEvent = () => {
+    const today = new Date();
+    const todayStr = today.toISOString().split('T')[0]; // YYYY-MM-DD 형식
+
+    // 오늘 날짜와 현재 표시 중인 월이 같은지 확인
+    const isCurrentMonth = today.getFullYear() === currentDate.getFullYear() && 
+                          today.getMonth() === currentDate.getMonth();
+
+    if (!isCurrentMonth) {
+      console.log('현재 월이 아니므로 자동 스크롤 건너뜀');
+      return;
+    }
+
+    // 짧은 지연 후 스크롤 실행 (DOM 렌더링 완료 대기)
+    setTimeout(() => {
+      // 1. 오늘 날짜 일정이 있는지 확인
+      const todayEvents = events.filter(event => event.date === todayStr);
+
+      if (todayEvents.length > 0) {
+        // 오늘 일정이 있으면 해당 날짜로 스크롤
+        console.log('오늘 일정 발견, 해당 위치로 스크롤');
+        scrollToDate(todayStr);
+        return;
+      }
+
+      // 2. 오늘 일정이 없으면 가장 가까운 미래 일정 찾기
+      const futureEvents = events
+        .filter(event => event.date > todayStr)
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+      if (futureEvents.length > 0) {
+        // 가장 가까운 미래 일정으로 스크롤
+        console.log('가장 가까운 미래 일정으로 스크롤:', futureEvents[0].date);
+        scrollToDate(futureEvents[0].date);
+        return;
+      }
+
+      // 3. 미래 일정도 없으면 맨 밑으로 스크롤
+      console.log('미래 일정 없음, 맨 밑으로 스크롤');
+      scrollToBottom();
+    }, 500);
+  };
+
+  // 특정 날짜로 스크롤하는 함수
+  const scrollToDate = (targetDate: string) => {
+    const targetDay = new Date(targetDate).getDate();
+    // 날짜별 그룹에서 해당 날짜 찾기
+    const calendarData = groupEventsByDate(events);
+    const targetGroup = calendarData.find(group => {
+      const groupDate = new Date(group.sortDate);
+      return groupDate.getDate() === targetDay;
+    });
+
+    if (targetGroup) {
+      // 해당 날짜의 DOM 요소 찾기 (첫 번째 이벤트 카드로 스크롤)
+      const eventCards = document.querySelectorAll('[data-date]');
+      const targetCard = Array.from(eventCards).find(card => {
+        const cardDate = card.getAttribute('data-date');
+        return cardDate === targetDate;
+      });
+
+      if (targetCard) {
+        targetCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
+
+  // 맨 밑으로 스크롤하는 함수
+  const scrollToBottom = () => {
+    const container = document.querySelector('.overflow-y-auto');
+    if (container) {
+      container.scrollTo({ 
+        top: container.scrollHeight, 
+        behavior: 'smooth' 
+      });
+    }
+  };
+
   // 사용자 정보 로드
   useEffect(() => {
     const loadUserInfo = async () => {
@@ -120,6 +202,17 @@ export const CalendarPage = (): JSX.Element => {
   useEffect(() => {
     loadEvents();
   }, [currentDate]); // activeTab 의존성 제거 - 프론트엔드에서 필터링하므로
+
+  // 페이지 초기 로드 시에만 자동 스크롤 실행
+  useEffect(() => {
+    if (!loading && events.length > 0 && isInitialLoad) {
+      console.log('초기 로드 감지 - 자동 스크롤 실행');
+      autoScrollToRelevantEvent();
+      setIsInitialLoad(false); // 자동 스크롤 실행 후 플래그 해제
+    } else if (!loading && !isInitialLoad) {
+      console.log('네비게이션으로 월 변경 - 자동 스크롤 건너뜀');
+    }
+  }, [loading, events, currentDate, isInitialLoad]);
 
   // activeTab이 변경될 때만 리렌더링 (API 재호출 없이)
   useEffect(() => {
@@ -212,7 +305,7 @@ export const CalendarPage = (): JSX.Element => {
     }
   };
 
-  const calendarData = groupEventsByDate(events);
+  const calendarData = React.useMemo(() => groupEventsByDate(events), [events, groupEventsByDate]);
 
   return (
     <div className="relative w-full max-w-[393px] h-[852px] bg-white mx-auto">
@@ -292,7 +385,7 @@ export const CalendarPage = (): JSX.Element => {
                 {/* Events for this date */}
                 <div className="space-y-3">
                   {dateGroup.events.map((event, eventIndex) => (
-                    <div key={eventIndex} className="bg-white rounded-xl p-4 border border-[#e5e7eb] shadow-sm">
+                    <div key={eventIndex} className="bg-white rounded-xl p-4 border border-[#e5e7eb] shadow-sm" data-date={dateGroup.sortDate.toISOString().split('T')[0]}>
                       {/* Event Header */}
                       <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center gap-2">
