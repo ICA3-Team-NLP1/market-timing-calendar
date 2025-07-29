@@ -80,6 +80,33 @@ class FredApiClient:
         response.raise_for_status()
         return response.json()
 
+    def _make_api_request_with_retry(self, url: str, params: Dict[str, Any], operation_name: str, release_id: str) -> Dict[str, Any]:
+        """공통 API 요청 메서드 (재시도 로직 포함)"""
+        for attempt in range(self.max_retries):
+            try:
+                response = requests.get(url, params=params)
+                response.raise_for_status()
+                result = response.json()
+                
+                # 요청 간격 추가
+                time.sleep(self.request_delay)
+                return result
+                
+            except requests.exceptions.HTTPError as e:
+                if e.response.status_code == 429 and attempt < self.max_retries - 1:
+                    wait_time = (attempt + 1) * 2  # 점진적으로 대기 시간 증가
+                    logger.warning(f"release_id={release_id} {operation_name} 실패 (429), {wait_time}초 후 재시도 {attempt + 1}/{self.max_retries}")
+                    time.sleep(wait_time)
+                    continue
+                else:
+                    logger.warning(f"release_id={release_id} {operation_name} 실패: {e}")
+                    return {}
+            except Exception as e:
+                logger.warning(f"release_id={release_id} {operation_name} 실패: {e}")
+                return {}
+        
+        return {}
+
     def get_release_metadata(self, release_id: str) -> Dict[str, Any]:
         """Release 메타데이터 조회"""
         url = f'{self.config.base_url}/release'
@@ -89,30 +116,8 @@ class FredApiClient:
             'file_type': self.config.file_type
         }
 
-        for attempt in range(self.max_retries):
-            try:
-                response = requests.get(url, params=params)
-                response.raise_for_status()
-                result = response.json().get('releases', [{}])[0]
-                
-                # 요청 간격 추가
-                time.sleep(self.request_delay)
-                return result
-                
-            except requests.exceptions.HTTPError as e:
-                if e.response.status_code == 429 and attempt < self.max_retries - 1:
-                    wait_time = (attempt + 1) * 2  # 점진적으로 대기 시간 증가
-                    logger.warning(f"release_id={release_id} 메타데이터 조회 실패 (429), {wait_time}초 후 재시도 {attempt + 1}/{self.max_retries}")
-                    time.sleep(wait_time)
-                    continue
-                else:
-                    logger.warning(f"release_id={release_id} 메타데이터 조회 실패: {e}")
-                    return {}
-            except Exception as e:
-                logger.warning(f"release_id={release_id} 메타데이터 조회 실패: {e}")
-                return {}
-        
-        return {}
+        result = self._make_api_request_with_retry(url, params, "메타데이터 조회", release_id)
+        return result.get('releases', [{}])[0] if result else {}
 
     def get_representative_series_info(self, release_id: str) -> Dict[str, Any]:
         """대표 시리즈 정보 조회"""
@@ -123,37 +128,15 @@ class FredApiClient:
             'file_type': self.config.file_type
         }
 
-        for attempt in range(self.max_retries):
-            try:
-                response = requests.get(url, params=params)
-                response.raise_for_status()
-                series_list = response.json().get('seriess', [])
+        result = self._make_api_request_with_retry(url, params, "시리즈 조회", release_id)
+        series_list = result.get('seriess', []) if result else []
 
-                # popularity 기준으로 정렬 후 가장 인기 있는 시리즈 반환
-                if series_list:
-                    preferred = sorted(series_list, key=lambda x: x.get('popularity', 0), reverse=True)
-                    result = preferred[0]
-                else:
-                    result = {}
-                
-                # 요청 간격 추가
-                time.sleep(self.request_delay)
-                return result
-                
-            except requests.exceptions.HTTPError as e:
-                if e.response.status_code == 429 and attempt < self.max_retries - 1:
-                    wait_time = (attempt + 1) * 2  # 점진적으로 대기 시간 증가
-                    logger.warning(f"release_id={release_id} 시리즈 조회 실패 (429), {wait_time}초 후 재시도 {attempt + 1}/{self.max_retries}")
-                    time.sleep(wait_time)
-                    continue
-                else:
-                    logger.warning(f"release_id={release_id} 시리즈 조회 실패: {e}")
-                    return {}
-            except Exception as e:
-                logger.warning(f"release_id={release_id} 시리즈 조회 실패: {e}")
-                return {}
-        
-        return {}
+        # popularity 기준으로 정렬 후 가장 인기 있는 시리즈 반환
+        if series_list:
+            preferred = sorted(series_list, key=lambda x: x.get('popularity', 0), reverse=True)
+            return preferred[0]
+        else:
+            return {}
 
 
 class FredDataProcessor:
