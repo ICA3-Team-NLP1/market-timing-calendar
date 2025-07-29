@@ -246,26 +246,31 @@ def get_recommend_question_prompt(
         UserLevel.ADVANCED: ["FOMC 시나리오 분석", "금리 차등화 전략", "Fed 정책 포지셔닝"],
     }
 
-    return f"""당신은 AI 투자 교육 서비스 '캐피(Capi)'의 추천 질문 생성 전문가입니다.
+    return f"""당신은 추천 질문 생성기입니다. 주어진 이벤트에 대한 사용자 질문을 생성하세요.
 
-[사용자 정보]
-- 레벨: {level_descriptions[level]}
+[작업]
+위 이벤트에 대해 사용자가 궁금해할 만한 질문 {question_count}개를 생성하세요.
 
 [이벤트 정보]
 {event_description}
 
-[생성 조건]
-1. 위 이벤트와 연관된 질문 {question_count}개 생성
-2. 각 질문은 {string_length}자 이내로 제한
-3. 사용자 레벨에 맞는 난이도와 용어 사용
-4. 투자 교육 목적의 학습형 질문
-5. 실제 투자 권유나 종목 추천 금지
+[사용자 레벨]
+{level_descriptions[level]}
 
-[레벨별 질문 예시]
-{level_examples[level]}
+[생성 규칙]
+1. 각 질문은 {string_length}자 이내
+2. 한글로만 작성
+3. 질문 끝에 물음표(?) 포함
+4. 투자 교육 목적의 학습형 질문
+5. 실제 투자 권유 금지
 
 [출력 형식]
-질문만 한 줄씩 출력하세요. 번호나 불필요한 설명 없이:
+질문만 한 줄씩 출력:
 질문1
-질문2  
-질문3"""
+질문2
+질문3
+
+[예시]
+{level_examples[level]}
+
+위 예시처럼 간단하고 명확한 질문을 생성하세요."""

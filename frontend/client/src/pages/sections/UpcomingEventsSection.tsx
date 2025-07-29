@@ -5,6 +5,7 @@ import { Level2Gem } from "@/components/icons/Level2Gem";
 import { useLocation } from "wouter";
 import { handleLevelUpdate } from "@/utils/levelUpHelper";
 import { useLevelUp } from "@/contexts/LevelUpContext";
+// @ts-ignore
 import { getCalendarEvents, generateRecommendQuestion } from "@/utils/api";
 
 export const UpcomingEventsSection = (): JSX.Element => {
@@ -18,7 +19,7 @@ export const UpcomingEventsSection = (): JSX.Element => {
   const [loading, setLoading] = useState(false);
 
   // 이벤트 데이터와 추천 질문 생성
-  const [events, setEvents] = useState([]);
+  const [events, setEvents] = useState<any[]>([]);
   
   useEffect(() => {
     const loadEventsAndQuestions = async () => {
@@ -27,11 +28,18 @@ export const UpcomingEventsSection = (): JSX.Element => {
 
         // 오늘부터 7일 후까지의 이벤트 조회
         const today = new Date();
+        console.log("==today:", today.toString());
         const futureDate = new Date();
         futureDate.setDate(today.getDate() + 7);
+        console.log("==futureDate:", futureDate.toString());
 
-        const startDate = today.toISOString().split("T")[0];
-        const endDate = futureDate.toISOString().split("T")[0];
+        const formatDateLocal = (date: any): string =>
+          `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        
+        const startDate = formatDateLocal(today);
+        console.log("==startDate:", startDate.toString());
+        const endDate = formatDateLocal(futureDate);
+        console.log("==endDate:", endDate.toString());
 
         const eventsData = await getCalendarEvents(startDate, endDate);
         
@@ -41,30 +49,42 @@ export const UpcomingEventsSection = (): JSX.Element => {
 
           // 날짜순으로 정렬하고 가장 빠른 이벤트 선택
           const sortedEvents = eventsData.sort(
-            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+            (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime(),
           );
           const nextEvent = sortedEvents[0];
 
           // D-day 계산
-          const eventDate = new Date(nextEvent.date);
+          const parseDateAsLocal = (dateStr: any): Date => {
+            const [year, month, day] = dateStr.split('-').map(Number);
+            return new Date(year, month - 1, day);
+          };
+          const eventDate = parseDateAsLocal(nextEvent.date);
           const todayDate = new Date();
           todayDate.setHours(0, 0, 0, 0);
           eventDate.setHours(0, 0, 0, 0);
 
           const timeDiff = eventDate.getTime() - todayDate.getTime();
-          const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+          const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));
 
           const getDayText = () => {
+            console.log("[🧭 D-day Debug Log]");
+            console.log("eventDate:", eventDate.toString());
+            console.log("todayDate:", todayDate.toString());
+            console.log("timeDiff(ms):", timeDiff);
+            console.log("daysDiff:", daysDiff);
             if (daysDiff === 0) return "오늘";
-            if (daysDiff === 1) return "D-1";
-            return `D-${daysDiff}`;
+            if (daysDiff > 0) return `D-${daysDiff}`;
+            return `D+${Math.abs(daysDiff)}`; // 과거 이벤트 처리
           };
 
-          // 이벤트 설명 구성
-          const eventDescription = `놓치지 마세요
-'${nextEvent.title}' 일정이 다가와요! (${getDayText()})
+          // 이벤트 설명을 더 구체적으로 구성
+          const eventDescription = `오늘은 ${new Date().toLocaleDateString('ko-KR')}이고, ${getDayText()}에 '${nextEvent.title}' 이벤트가 예정되어 있습니다.
 
-${nextEvent.description_ko || nextEvent.description || "경제 지표 발표"}`;
+이벤트 제목: ${nextEvent.title}
+이벤트 설명: ${nextEvent.description_ko || nextEvent.description || "경제 지표 발표"}
+예정 날짜: ${nextEvent.date}
+
+이 이벤트에 대해 유저가 궁금해할 만한 질문들을 생성해주세요. (한글로)`;
 
           // 세션 ID 가져오기
           const sessionId = window.sessionStorage.getItem("chatSessionId");
@@ -73,7 +93,7 @@ ${nextEvent.description_ko || nextEvent.description || "경제 지표 발표"}`;
           const response = await generateRecommendQuestion(
             eventDescription,
             3, // 질문 개수
-            15, // 문자열 길이 제한
+            30, // 문자열 길이 제한
             sessionId,
           );
 
@@ -127,24 +147,34 @@ ${nextEvent.description_ko || nextEvent.description || "경제 지표 발표"}`;
                 if (events && events.length > 0) {
                   // 날짜순으로 정렬하고 가장 빠른 이벤트 선택
                   const sortedEvents = events.sort(
-                    (a, b) =>
+                    (a: any, b: any) =>
                       new Date(a.date).getTime() - new Date(b.date).getTime(),
                   );
                   const nextEvent = sortedEvents[0];
 
+                  const parseDateAsLocal = (dateStr: any): Date => {
+                    const [year, month, day] = dateStr.split('-').map(Number);
+                    return new Date(year, month - 1, day);
+                  };
                   // D-day 계산
-                  const eventDate = new Date(nextEvent.date);
+                  const eventDate = parseDateAsLocal(nextEvent.date);
                   const todayDate = new Date();
                   todayDate.setHours(0, 0, 0, 0);
                   eventDate.setHours(0, 0, 0, 0);
 
                   const timeDiff = eventDate.getTime() - todayDate.getTime();
-                  const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24));
+                  const daysDiff = Math.floor(timeDiff / (1000 * 3600 * 24));
 
                   const getDayText = () => {
+                    console.log("[🧭 D-day Debug Log]");
+                    console.log("eventDate:", eventDate.toString());
+                    console.log("todayDate:", todayDate.toString());
+                    console.log("timeDiff(ms):", timeDiff);
+                    console.log("daysDiff:", daysDiff);
+
                     if (daysDiff === 0) return "오늘";
-                    if (daysDiff === 1) return "D-1";
-                    return `D-${daysDiff}`;
+                    if (daysDiff > 0) return `D-${daysDiff}`;
+                    return `D+${Math.abs(daysDiff)}`; // 과거 이벤트 처리
                   };
 
                   return (
@@ -176,7 +206,7 @@ ${nextEvent.description_ko || nextEvent.description || "경제 지표 발표"}`;
         (() => {
           if (events && events.length > 0) {
             const sortedEvents = events.sort(
-              (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+              (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime(),
             );
             const nextEvent = sortedEvents[0];
 
