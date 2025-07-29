@@ -395,6 +395,10 @@ export const apiCall = async (url, options = {}) => {
 
         return await response.json();
     } catch (error) {
+        // 로그인 관련 에러인 경우 로그인 페이지로 리다이렉트
+        if (error.message === "로그인이 필요합니다" || error.message.includes("401") || error.message.includes("Unauthorized")) {
+            window.location.href = '/login';
+        }
         throw error;
     }
 };

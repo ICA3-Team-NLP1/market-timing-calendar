@@ -8,6 +8,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { handleLevelUpdate } from "@/utils/levelUpHelper";
 import { useLevelUp } from "@/contexts/LevelUpContext";
+import { auth } from "../firebase.js";
+import { onAuthStateChanged } from "firebase/auth";
 
 interface ChatMessage {
   type: "user" | "assistant";
@@ -20,6 +22,17 @@ export const ChatPage = (): JSX.Element => {
   const [isLoading, setIsLoading] = useState(false);
   const [currentEvent, setCurrentEvent] = useState<any>(null);
   const { showLevelUpModal } = useLevelUp();
+
+  // 인증 상태 확인 및 리다이렉트
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        setLocation('/login');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [setLocation]);
 
   // URL에서 파라미터 추출
   const urlParams = new URLSearchParams(window.location.search);
