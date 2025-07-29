@@ -8,6 +8,23 @@ import { useLevelUp } from "@/contexts/LevelUpContext";
 // @ts-ignore
 import { getCalendarEvents, generateRecommendQuestion } from "@/utils/api";
 
+// 이벤트 타입 정의
+interface CalendarEvent {
+  id: number;
+  title: string;
+  description: string;
+  description_ko?: string;
+  date: string;
+  impact: string;
+  level: string;
+  source: string;
+  popularity: number;
+  level_category: string;
+  created_at: string;
+  updated_at: string;
+  dropped_at: string | null;
+}
+
 export const UpcomingEventsSection = (): JSX.Element => {
   const [, setLocation] = useLocation();
   const { showLevelUpModal } = useLevelUp();
@@ -19,7 +36,7 @@ export const UpcomingEventsSection = (): JSX.Element => {
   const [loading, setLoading] = useState(false);
 
   // 이벤트 데이터와 추천 질문 생성
-  const [events, setEvents] = useState<any[]>([]);
+  const [events, setEvents] = useState<CalendarEvent[]>([]);
   
   useEffect(() => {
     const loadEventsAndQuestions = async () => {
@@ -33,7 +50,7 @@ export const UpcomingEventsSection = (): JSX.Element => {
         futureDate.setDate(today.getDate() + 7);
         console.log("==futureDate:", futureDate.toString());
 
-        const formatDateLocal = (date: any): string =>
+        const formatDateLocal = (date: Date): string =>
           `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
         
         const startDate = formatDateLocal(today);
@@ -49,12 +66,12 @@ export const UpcomingEventsSection = (): JSX.Element => {
 
           // 날짜순으로 정렬하고 가장 빠른 이벤트 선택
           const sortedEvents = eventsData.sort(
-            (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+            (a: CalendarEvent, b: CalendarEvent) => new Date(a.date).getTime() - new Date(b.date).getTime(),
           );
           const nextEvent = sortedEvents[0];
 
           // D-day 계산
-          const parseDateAsLocal = (dateStr: any): Date => {
+          const parseDateAsLocal = (dateStr: string): Date => {
             const [year, month, day] = dateStr.split('-').map(Number);
             return new Date(year, month - 1, day);
           };
@@ -147,12 +164,12 @@ export const UpcomingEventsSection = (): JSX.Element => {
                 if (events && events.length > 0) {
                   // 날짜순으로 정렬하고 가장 빠른 이벤트 선택
                   const sortedEvents = events.sort(
-                    (a: any, b: any) =>
+                    (a: CalendarEvent, b: CalendarEvent) =>
                       new Date(a.date).getTime() - new Date(b.date).getTime(),
                   );
                   const nextEvent = sortedEvents[0];
 
-                  const parseDateAsLocal = (dateStr: any): Date => {
+                  const parseDateAsLocal = (dateStr: string): Date => {
                     const [year, month, day] = dateStr.split('-').map(Number);
                     return new Date(year, month - 1, day);
                   };
@@ -206,7 +223,7 @@ export const UpcomingEventsSection = (): JSX.Element => {
         (() => {
           if (events && events.length > 0) {
             const sortedEvents = events.sort(
-              (a: any, b: any) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+              (a: CalendarEvent, b: CalendarEvent) => new Date(a.date).getTime() - new Date(b.date).getTime(),
             );
             const nextEvent = sortedEvents[0];
 
