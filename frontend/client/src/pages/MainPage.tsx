@@ -5,9 +5,22 @@ import { UpcomingEventsSection } from "./sections/UpcomingEventsSection";
 import { AppHeader } from "@/components/common/AppHeader";
 import { ChatInput } from "@/components/common/ChatInput";
 import { useLocation } from "wouter";
+import { auth } from "../firebase.js";
+import { onAuthStateChanged } from "firebase/auth";
 
 export const MainPage = (): JSX.Element => {
   const [, setLocation] = useLocation();
+
+  // 인증 상태 확인 및 리다이렉트
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        setLocation('/login');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [setLocation]);
 
   // 페이지 로드 시 스크롤 맨 위로 이동
   useEffect(() => {

@@ -32,6 +32,11 @@ export const AppHeader = ({ showBackButton = false, onBackClick }: AppHeaderProp
       setLevelDisplayName(displayName);
     } catch (error) {
       console.error('사용자 레벨 로드 실패:', error);
+      // 로그인 관련 에러인 경우 로그인 페이지로 리다이렉트
+      if (error.message === "로그인이 필요합니다" || error.message.includes("401") || error.message.includes("Unauthorized")) {
+        setLocation('/login');
+        return;
+      }
       // 에러 시 기본값 유지
       setUserLevel(DEFAULT_USER_LEVEL);
       setLevelDisplayName(DEFAULT_LEVEL_DISPLAY_NAME);

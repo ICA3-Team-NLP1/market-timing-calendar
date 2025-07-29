@@ -11,6 +11,8 @@ import { useLocation } from "wouter";
 import { getCalendarEvents, getCurrentUser } from "@/utils/api";
 import { handleLevelUpdate } from "@/utils/levelUpHelper";
 import { useLevelUp } from "@/contexts/LevelUpContext";
+import { auth } from "../firebase.js";
+import { onAuthStateChanged } from "firebase/auth";
 
 export const CalendarPage = (): JSX.Element => {
   const [, setLocation] = useLocation();
@@ -20,6 +22,17 @@ export const CalendarPage = (): JSX.Element => {
   const [activeTab, setActiveTab] = useState("all");
   const [userLevel, setUserLevel] = useState("BEGINNER");
   const { showLevelUpModal } = useLevelUp();
+
+  // 인증 상태 확인 및 리다이렉트
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (!user) {
+        setLocation('/login');
+      }
+    });
+
+    return () => unsubscribe();
+  }, [setLocation]);
 
   // 페이지 로드 시 스크롤 맨 위로 이동
   useEffect(() => {
@@ -71,12 +84,17 @@ export const CalendarPage = (): JSX.Element => {
         setUserLevel(user.level);
       } catch (error) {
         console.error('사용자 정보 로드 실패:', error);
+        // 로그인 관련 에러인 경우 로그인 페이지로 리다이렉트
+        if (error.message === "로그인이 필요합니다" || error.message.includes("401") || error.message.includes("Unauthorized")) {
+          setLocation('/login');
+          return;
+        }
         setUserLevel("BEGINNER"); // 기본값
       }
     };
 
     loadUserInfo();
-  }, []);
+  }, [setLocation]);
 
   useEffect(() => {
     loadEvents();
