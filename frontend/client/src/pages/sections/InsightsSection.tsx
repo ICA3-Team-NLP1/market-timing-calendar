@@ -17,7 +17,7 @@ export const InsightsSection = (): JSX.Element => {
   const handleEventClick = async (eventId: number) => {
     // 레벨 업데이트 - 일정 조회 (다가오는 일정 클릭 시)
     await handleLevelUpdate('calendar_views', showLevelUpModal);
-    
+
     setLocation(`/chat?eventId=${eventId}`);
   };
 
@@ -143,31 +143,29 @@ return (
           {upcomingEvents.map((event) => (
             <Card
               key={event.id}
-              className="flex-shrink-0 bg-[#f1f3f7] rounded-md shadow-[0px_4px_4px_#00000005] border-none cursor-pointer hover:bg-[#e1e7f1] transition-colors"
+              className="flex-shrink-0 min-w-[160px] max-w-[200px] bg-[#f1f3f7] rounded-md shadow-[0px_4px_4px_#00000005] border-none cursor-pointer hover:bg-[#e1e7f1] transition-colors"
               onClick={() => handleEventClick(event.id)}
             >
-              <CardContent className="flex flex-col items-start gap-2.5 pt-4 pb-5 px-4">
+              <CardContent className="flex flex-col items-start gap-2.5 pt-4 pb-5 px-4 h-full">
                 <div className="flex items-center justify-between w-full">
                   <div className="relative w-5 h-5">
                     {getLevelGem(event.originalEvent?.level || "BEGINNER")}
                   </div>
 
                   <div
-                    className={`relative w-fit [font-family:'Pretendard-${event.label === "Today" ? "Bold" : "Medium"}',Helvetica] ${event.labelStyle} text-xs whitespace-nowrap`}
+                className={`relative w-fit [font-family:'Pretendard-${event.label === "Today" ? "Bold" : "Medium"}',Helvetica] ${event.labelStyle} text-xs whitespace-nowrap`}
                   >
                     {event.label}
                   </div>
                 </div>
 
-                <div className="flex flex-col w-[116px] items-start gap-2">
-                  <h3 className="self-stretch mt-[-1.00px] [font-family:'Pretendard-Bold',Helvetica] font-bold text-black leading-normal text-sm">
+                <div className="flex flex-col w-full items-start gap-2 flex-1">
+                  <h3 className="self-stretch mt-[-1.00px] [font-family:'Pretendard-Bold',Helvetica] font-bold text-black leading-normal text-sm line-clamp-2">
                     {event.title}
                   </h3>
 
-                  <p className="self-stretch [font-family:'Pretendard-Regular',Helvetica] font-normal text-black leading-[19.6px] text-sm whitespace-pre-line">
-                    {event.description.length > 50 
-                      ? event.description.substring(0, 50) + "..." 
-                      : event.description}
+                  <p className="self-stretch [font-family:'Pretendard-Regular',Helvetica] font-normal text-[#666666] text-xs leading-normal line-clamp-2">
+                    {event.description}
                   </p>
                 </div>
               </CardContent>

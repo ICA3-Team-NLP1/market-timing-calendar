@@ -13,13 +13,34 @@ export const MainPage = (): JSX.Element => {
 
   // 인증 상태 확인 및 리다이렉트
   useEffect(() => {
+    console.log('🏠 MainPage useEffect 실행');
+    
+    // 더미 모드 체크
+    const isDummyMode = window._replit === true;
+    const dummyUser = localStorage.getItem('dummyUser');
+    
+    console.log('🏠 MainPage 더미 모드 체크:');
+    console.log('🏠 isDummyMode:', isDummyMode);
+    console.log('🏠 dummyUser 존재:', !!dummyUser);
+    
+    if (isDummyMode && dummyUser) {
+      console.log('🏠 더미 모드 감지 - Firebase 리스너 생략');
+      return;
+    }
+
+    console.log('🏠 Firebase 인증 리스너 등록');
     const unsubscribe = onAuthStateChanged(auth, (user) => {
+      console.log('🏠 Firebase 인증 상태:', user ? '로그인됨' : '로그아웃됨');
       if (!user) {
+        console.log('🏠 사용자 없음 - /login으로 리다이렉트');
         setLocation('/login');
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      console.log('🏠 Firebase 리스너 해제');
+      unsubscribe();
+    };
   }, [setLocation]);
 
   // 페이지 로드 시 스크롤 맨 위로 이동
