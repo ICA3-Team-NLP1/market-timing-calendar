@@ -181,14 +181,33 @@ class LLMInferenceService:
     def _infer_impact_sync(self, release_name: str, series_info: Dict[str, Any]) -> str:
         """영향도 추론 (동기 방식)"""
         prompt_template = """
-        다음 경제 지표의 시장 영향도를 평가해주세요:
+        다음 경제 지표의 시장 영향도를 평가해주세요.
+        
+        예시:
+        지표명: Consumer Price Index
+        제목: Consumer Price Index for All Urban Consumers: All Items
+        설명: Measures the average change over time in the prices paid by urban consumers for a market basket of consumer goods and services.
+        출처: U.S. Bureau of Labor Statistics
+        응답: HIGH
+        
+        지표명: Industrial Production
+        제목: Industrial Production: Manufacturing
+        설명: Measures the real output of all relevant establishments located in the United States.
+        출처: Board of Governors of the Federal Reserve System
+        응답: MEDIUM
+        
+        지표명: Housing Starts
+        제목: Housing Starts: Total: New Privately Owned Housing Units Started
+        설명: The number of new residential construction projects that have begun during any particular month.
+        출처: U.S. Census Bureau
+        응답: MEDIUM
         
         지표명: {name}
         제목: {title}
         설명: {notes}
         출처: {source}
         
-        다음 중 하나로 응답해주세요: HIGH, MEDIUM, LOW
+        다음 중 하나로만 응답해주세요: HIGH, MEDIUM, LOW
         """
         
         input_data = {
@@ -203,7 +222,27 @@ class LLMInferenceService:
         config = self.background_service.langfuse_manager.get_callback_config()
 
         result = chain.invoke(input_data, config=config)
-        return result.content.strip().upper() if hasattr(result, "content") else str(result).strip().upper()
+        raw_response = result.content.strip().upper() if hasattr(result, "content") else str(result).strip().upper()
+        
+        # String parsing으로 정확한 값 추출
+        return self._parse_impact_response(raw_response)
+    
+    def _parse_impact_response(self, response: str) -> str:
+        """영향도 응답 파싱 및 정규화"""
+        # 정확한 값이 있는 경우
+        if response in ["HIGH", "MEDIUM", "LOW"]:
+            return response
+        
+        # 응답에서 키워드 검색
+        if "HIGH" in response:
+            return "HIGH"
+        elif "MEDIUM" in response:
+            return "MEDIUM"
+        elif "LOW" in response:
+            return "LOW"
+        
+        # 기본값 (가장 안전한 옵션)
+        return "MEDIUM"
 
     def _infer_level_sync(self, release_name: str, series_info: Dict[str, Any]) -> str:
         """레벨 추론 (JSON 응답, 동기 방식)"""
@@ -267,14 +306,33 @@ class LLMInferenceService:
     def _infer_impact(self, release_name: str, series_info: Dict[str, Any]) -> str:
         """영향도 추론 (async 방식)"""
         prompt_template = """
-        다음 경제 지표의 시장 영향도를 평가해주세요:
+        다음 경제 지표의 시장 영향도를 평가해주세요.
+        
+        예시:
+        지표명: Consumer Price Index
+        제목: Consumer Price Index for All Urban Consumers: All Items
+        설명: Measures the average change over time in the prices paid by urban consumers for a market basket of consumer goods and services.
+        출처: U.S. Bureau of Labor Statistics
+        응답: HIGH
+        
+        지표명: Industrial Production
+        제목: Industrial Production: Manufacturing
+        설명: Measures the real output of all relevant establishments located in the United States.
+        출처: Board of Governors of the Federal Reserve System
+        응답: MEDIUM
+        
+        지표명: Housing Starts
+        제목: Housing Starts: Total: New Privately Owned Housing Units Started
+        설명: The number of new residential construction projects that have begun during any particular month.
+        출처: U.S. Census Bureau
+        응답: MEDIUM
         
         지표명: {name}
         제목: {title}
         설명: {notes}
         출처: {source}
         
-        다음 중 하나로 응답해주세요: HIGH, MEDIUM, LOW
+        다음 중 하나로만 응답해주세요: HIGH, MEDIUM, LOW
         """
         
         input_data = {
@@ -285,7 +343,10 @@ class LLMInferenceService:
         }
         
         result = asyncio.run(self.background_service.process_with_llm(prompt_template, input_data))
-        return result.strip().upper()
+        raw_response = result.strip().upper()
+        
+        # String parsing으로 정확한 값 추출
+        return self._parse_impact_response(raw_response)
 
     def _infer_level(self, release_name: str, series_info: Dict[str, Any]) -> str:
         """레벨 추론 (JSON 응답, async 방식)"""
