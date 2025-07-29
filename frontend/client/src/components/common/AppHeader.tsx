@@ -65,7 +65,7 @@ export const AppHeader = ({ showBackButton = false, onBackClick }: AppHeaderProp
   }, []);
 
   const handleCaffyClick = () => {
-    setIsLevelUpModalOpen(true);
+    // CAFFY 클릭 시 아무 동작하지 않음
   };
 
   const handleInterestClick = () => {
