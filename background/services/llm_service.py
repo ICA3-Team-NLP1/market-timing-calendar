@@ -241,7 +241,9 @@ class LLMInferenceService:
         elif "LOW" in response:
             return "LOW"
         
-        # 기본값 (가장 안전한 옵션)
+        # 기본값 (가장 안전한 옵션): "MEDIUM"은 균형잡힌 영향도를 나타냅니다.
+        # 과대평가(HIGH)나 과소평가(LOW)의 위험을 최소화하여 잘못된 우선순위나
+        # 리소스 할당으로 인한 문제를 방지합니다.
         return "MEDIUM"
 
     def _infer_level_sync(self, release_name: str, series_info: Dict[str, Any]) -> str:
