@@ -377,7 +377,13 @@ async def generate_recommend_question(request: RecommendQuestionRequest, db_user
         langfuse_manager = LangfuseFactory.create_app_manager(user=db_user, session_id=request.session_id)
         llm_client = LLMClient(user=db_user, langfuse_manager=langfuse_manager)
 
-        response = await llm_client.chat(messages=[{"role": "system", "content": prompt}])
+        # system 메시지와 user 메시지를 모두 포함
+        messages = [
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": "위 이벤트에 대한 추천 질문을 생성해주세요."}
+        ]
+
+        response = await llm_client.chat(messages=messages)
 
         if not response:
             logger.warning("LLM 응답이 비어있음")
