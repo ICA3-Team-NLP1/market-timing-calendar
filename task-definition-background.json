@@ -27,6 +27,18 @@
         {
           "name": "FASTAPI_ENV",
           "value": "prod"
+        },
+        {
+          "name": "FRED_REQUEST_DELAY",
+          "value": "2.0"
+        },
+        {
+          "name": "FRED_MAX_RETRIES",
+          "value": "3"
+        },
+        {
+          "name": "FRED_BATCH_SIZE",
+          "value": "5"
         }
       ],
       "secrets": [
@@ -37,6 +49,42 @@
         {
           "name": "REDIS_URL",
           "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/redis-url"
+        },
+        {
+          "name": "FRED_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/fred-api-key"
+        },
+        {
+          "name": "OPENAI_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/openai-api-key"
+        },
+        {
+          "name": "ANTHROPIC_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/anthropic-api-key"
+        },
+        {
+          "name": "ACTIVE_LLM_PROVIDER",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/active-llm-provider"
+        },
+        {
+          "name": "ACTIVE_LLM_MODEL",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/active-llm-model"
+        },
+        {
+          "name": "LANGFUSE_PUBLIC_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/langfuse-public-key"
+        },
+        {
+          "name": "LANGFUSE_SECRET_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/langfuse-secret-key"
+        },
+        {
+          "name": "LANGFUSE_HOST",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/langfuse-host"
+        },
+        {
+          "name": "MEM0_API_KEY",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/mem0-api-key"
         }
       ],
       "logConfiguration": {

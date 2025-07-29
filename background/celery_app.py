@@ -3,6 +3,7 @@
 """
 import os
 import logging
+from datetime import datetime, timedelta
 from celery import Celery
 
 from app.core.config import settings
@@ -57,22 +58,146 @@ class DataCollectionOrchestrator:
         self.llm_service = llm_service
         self.event_service = event_service
     
+    def _get_date_range_from_env(self) -> tuple[str, str]:
+        """환경변수에서 날짜 범위 가져오기"""
+        # 환경변수에서 날짜 범위 가져오기
+        start_date = os.getenv('FRED_START_DATE')
+        end_date = os.getenv('FRED_END_DATE')
+        
+        # 환경변수가 없으면 기본값 사용 (오늘 기준 전후 30일)
+        if not start_date or not end_date:
+            today = datetime.now()
+            start_date = (today - timedelta(days=30)).strftime('%Y-%m-%d')
+            end_date = (today + timedelta(days=30)).strftime('%Y-%m-%d')
+            logger.info(f"환경변수 없음. 기본값 사용: {start_date} ~ {end_date}")
+        else:
+            logger.info(f"환경변수에서 날짜 범위 가져옴: {start_date} ~ {end_date}")
+        
+        return start_date, end_date
+    
+    def _generate_date_list(self, start_date: str, end_date: str) -> list[str]:
+        """시작일부터 종료일까지의 날짜 리스트 생성"""
+        start = datetime.strptime(start_date, '%Y-%m-%d')
+        end = datetime.strptime(end_date, '%Y-%m-%d')
+        
+        date_list = []
+        current = start
+        while current <= end:
+            date_list.append(current.strftime('%Y-%m-%d'))
+            current += timedelta(days=1)
+        
+        return date_list
+
     def collect_and_process_data(self) -> str:
         """데이터 수집 및 처리 메인 플로우 (Template Method Pattern)"""
         try:
-            # 1. FRED 데이터 수집
-            logger.info("FRED releases/dates API 호출 시작")
-            release_infos = self.fred_service.fetch_recent_releases(days_before=3, days_after=3)
+            # 1. 날짜 범위 결정
+            start_date, end_date = self._get_date_range_from_env()
+            
+            # 2. 날짜 리스트 생성
+            date_list = self._generate_date_list(start_date, end_date)
+            logger.info(f"처리할 날짜 수: {len(date_list)}개 ({start_date} ~ {end_date})")
+            
+            # 3. 날짜별로 순차 처리
+            all_release_infos = []
+            total_saved = 0
+            total_failed = 0
+            total_skipped = 0
+            
+            for i, current_date in enumerate(date_list, 1):
+                logger.info(f"처리 중: {i}/{len(date_list)} - {current_date}")
+                
+                try:
+                    # 3-1. 해당 날짜의 FRED 데이터 수집
+                    daily_release_infos = self.fred_service.fetch_releases_by_date_range(
+                        start_date=current_date, 
+                        end_date=current_date
+                    )
+                    
+                    if daily_release_infos:
+                        logger.info(f"{current_date}: {len(daily_release_infos)}개 release 발견")
+                        
+                        # 3-2. 해당 날짜의 이벤트 처리 및 저장
+                        stats = self.event_service.process_releases(daily_release_infos)
+                        
+                        total_saved += stats.saved_count
+                        total_failed += stats.failed_count
+                        total_skipped += stats.skipped_count
+                        
+                        logger.info(f"{current_date} 처리 완료: 저장={stats.saved_count}, 실패={stats.failed_count}, 스킵={stats.skipped_count}")
+                    else:
+                        logger.info(f"{current_date}: release 없음")
+                        
+                except Exception as e:
+                    logger.error(f"{current_date} 처리 실패: {e}")
+                    total_failed += 1
+                    continue
 
-            # 2. 이벤트 처리 및 저장
-            stats = self.event_service.process_releases(release_infos)
+            # 4. 결과 반환
+            return (
+                f"FRED 데이터 저장 완료. "
+                f"기간: {start_date} ~ {end_date}, "
+                f"처리된 날짜: {len(date_list)}개, "
+                f"총 저장된 이벤트: {total_saved}개, "
+                f"총 실패: {total_failed}개, "
+                f"총 스킵: {total_skipped}개"
+            )
+
+        except Exception as e:
+            error_msg = f"데이터 수집 실패: {e}"
+            logger.error(error_msg)
+            return error_msg
+
+    def collect_and_process_data_with_dates(self, start_date: str, end_date: str) -> str:
+        """특정 날짜 범위로 데이터 수집 및 처리"""
+        try:
+            # 1. 날짜 리스트 생성
+            date_list = self._generate_date_list(start_date, end_date)
+            logger.info(f"처리할 날짜 수: {len(date_list)}개 ({start_date} ~ {end_date})")
+            
+            # 2. 날짜별로 순차 처리
+            all_release_infos = []
+            total_saved = 0
+            total_failed = 0
+            total_skipped = 0
+            
+            for i, current_date in enumerate(date_list, 1):
+                logger.info(f"처리 중: {i}/{len(date_list)} - {current_date}")
+                
+                try:
+                    # 2-1. 해당 날짜의 FRED 데이터 수집
+                    daily_release_infos = self.fred_service.fetch_releases_by_date_range(
+                        start_date=current_date, 
+                        end_date=current_date
+                    )
+                    
+                    if daily_release_infos:
+                        logger.info(f"{current_date}: {len(daily_release_infos)}개 release 발견")
+                        
+                        # 2-2. 해당 날짜의 이벤트 처리 및 저장
+                        stats = self.event_service.process_releases(daily_release_infos)
+                        
+                        total_saved += stats.saved_count
+                        total_failed += stats.failed_count
+                        total_skipped += stats.skipped_count
+                        
+                        logger.info(f"{current_date} 처리 완료: 저장={stats.saved_count}, 실패={stats.failed_count}, 스킵={stats.skipped_count}")
+                    else:
+                        logger.info(f"{current_date}: release 없음")
+                        
+                except Exception as e:
+                    logger.error(f"{current_date} 처리 실패: {e}")
+                    total_failed += 1
+                    continue
 
             # 3. 결과 반환
             return (
                 f"FRED 데이터 저장 완료. "
-                f"새로 저장된 이벤트: {stats.saved_count}개, "
-                f"실패: {stats.failed_count}개, "
-                f"스킵: {stats.skipped_count}개"
+                f"기간: {start_date} ~ {end_date}, "
+                f"처리된 날짜: {len(date_list)}개, "
+                f"총 저장된 이벤트: {total_saved}개, "
+                f"총 실패: {total_failed}개, "
+                f"총 스킵: {total_skipped}개"
             )
 
         except Exception as e:
@@ -125,7 +250,7 @@ def simple_task(message):
 
 
 @app.task
-def data_collection_task():
+def data_collection_task(start_date: str = None, end_date: str = None):
     """
     리팩토링된 데이터 수집 태스크
     - Single Responsibility: 오케스트레이션만 담당
@@ -133,7 +258,13 @@ def data_collection_task():
     - KISS: 단순하고 명확한 플로우
     """
     orchestrator = ServiceFactory.create_orchestrator()
-    return orchestrator.collect_and_process_data()
+    
+    # 태스크 파라미터로 전달된 날짜가 있으면 사용, 없으면 환경변수 사용
+    if start_date and end_date:
+        logger.info(f"태스크 파라미터에서 날짜 범위 가져옴: {start_date} ~ {end_date}")
+        return orchestrator.collect_and_process_data_with_dates(start_date, end_date)
+    else:
+        return orchestrator.collect_and_process_data()
 
 
 if __name__ == '__main__':
