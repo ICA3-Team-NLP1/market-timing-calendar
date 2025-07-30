@@ -100,7 +100,6 @@ export const ChatPage = (): JSX.Element => {
     assistantMessage: ChatMessage,
     useDynamicUpdate: boolean = false
   ) => {
-    console.log('🔍 processStreamingResponse 시작');
     const reader = response.body?.getReader();
     const decoder = new TextDecoder();
     let fullResponseText = ''; // 전체 응답 텍스트 저장
@@ -116,8 +115,6 @@ export const ChatPage = (): JSX.Element => {
         buffer += chunk;
         fullResponseText += chunk; // 전체 응답에 추가
 
-        console.log('🔍 스트리밍 청크:', chunk);
-
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
@@ -127,7 +124,6 @@ export const ChatPage = (): JSX.Element => {
           if (line.startsWith('data: ')) {
             const data = line.slice(6).trim();
             if (data === '[DONE]') {
-              console.log('🔍 스트리밍 완료');
               break;
             }
 
@@ -135,12 +131,10 @@ export const ChatPage = (): JSX.Element => {
               try {
                 const parsed = JSON.parse(data);
                 if (parsed.content) {
-                  console.log('🔍 파싱된 콘텐츠:', parsed.content);
                   assistantMessage.content += parsed.content;
                   updateMessages(initialMessages, assistantMessage, useDynamicUpdate);
                 }
               } catch (e) {
-                console.log('🔍 파싱 실패, 원본 데이터:', data);
                 assistantMessage.content += data;
                 updateMessages(initialMessages, assistantMessage, useDynamicUpdate);
               }
@@ -152,8 +146,6 @@ export const ChatPage = (): JSX.Element => {
               setStoredSessionId(extractedSessionId);
             }
           } else if (line.trim() && !line.startsWith('data:') && !line.includes('SESSION_ID:')) {
-            console.log('🔍 일반 라인:', line.trim());
-            
             // 이전 콘텐츠가 있으면 \n 추가 (단락 구분)
             if (assistantMessage.content.trim()) {
               assistantMessage.content += '\n';
@@ -178,8 +170,6 @@ export const ChatPage = (): JSX.Element => {
           }
         }
       }
-
-      console.log('🔍 전체 응답 텍스트:', fullResponseText);
 
       // 스트리밍 완료 후 전체 응답에서 SESSION_ID 재확인
       const finalSessionIdMatch = fullResponseText.match(/SESSION_ID:\s*([a-f0-9\-]+)/i);
