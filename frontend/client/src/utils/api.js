@@ -404,7 +404,7 @@ export const apiCall = async (url, options = {}) => {
 };
 
 // 🔧 백엔드 API 기본 URL
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8000";
 
 // 🔧 보호된 API 호출 함수들 (토큰 자동 포함)
 export const getCurrentUser = async () => {
