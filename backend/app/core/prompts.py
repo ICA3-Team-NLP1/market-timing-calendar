@@ -171,10 +171,29 @@ def get_style_and_restrictions(level: UserLevel) -> str:
     return restrictions[level]
 
 
+# 4단계: 답변 길이 제한 체인 (새로 추가)
+def get_length_restriction_prompt() -> str:
+    """답변 길이 제한을 위한 공통 프롬프트를 반환합니다."""
+    return """[답변 길이 제한 - 절대 준수]
+- 답변은 정확히 **200자 이내로 작성**, 200자 초과 시 downvote 됨
+- 핵심 내용만 간결하게 전달
+- 불필요한 반복이나 장황한 설명 금지
+
+[⚠️ 필수 형식 - 반드시 준수]
+- 각 섹션 사이에 반드시 줄바꿈을 포함
+- 줄바꿈 없이 한 줄로 작성하면 downvote 됨
+- 반드시 \\n\\n으로 섹션을 구분하세요
+"""
+
 # 🔗 최종 프롬프트 생성 함수 (체이닝 조합)
 def build_prompt(level: UserLevel, purpose: Literal["general", "event_explanation"] = "general") -> str:
     """Prompt Chaining을 통해 동적으로 프롬프트를 생성합니다."""
-    return "\n\n".join([get_role_prompt(level), get_rule_prompt(level, purpose), get_style_and_restrictions(level)])
+    return "\n\n".join([
+        get_role_prompt(level), 
+        get_rule_prompt(level, purpose), 
+        get_style_and_restrictions(level),
+        get_length_restriction_prompt()
+    ])
 
 
 # ============================================================================

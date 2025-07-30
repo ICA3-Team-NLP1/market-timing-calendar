@@ -4,8 +4,6 @@ import { AppHeader } from "@/components/common/AppHeader";
 import { ChatInput } from "@/components/common/ChatInput";
 import { useLocation } from "wouter";
 import { explainEvent, getCalendarEvents, chatConversation } from "@/utils/api";
-import ReactMarkdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 import { handleLevelUpdate } from "@/utils/levelUpHelper";
 import { useLevelUp } from "@/contexts/LevelUpContext";
 import { auth } from "../firebase.js";
@@ -120,7 +118,9 @@ export const ChatPage = (): JSX.Element => {
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
-        for (const line of lines) {
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i];
+          
           if (line.startsWith('data: ')) {
             const data = line.slice(6).trim();
             if (data === '[DONE]') {
@@ -146,7 +146,26 @@ export const ChatPage = (): JSX.Element => {
               setStoredSessionId(extractedSessionId);
             }
           } else if (line.trim() && !line.startsWith('data:') && !line.includes('SESSION_ID:')) {
-            assistantMessage.content += line.trim() + ' ';
+            // 이전 콘텐츠가 있으면 \n 추가 (단락 구분)
+            if (assistantMessage.content.trim()) {
+              assistantMessage.content += '\n';
+            }
+            
+            assistantMessage.content += line.trim();
+            
+            // 다음 라인들을 확인해서 실제 콘텐츠의 마지막 라인인지 판단
+            const remainingLines = lines.slice(i + 1);
+            const hasMoreContent = remainingLines.some(nextLine => 
+              nextLine.trim() && 
+              !nextLine.startsWith('data:') && 
+              !nextLine.includes('SESSION_ID:')
+            );
+            
+            // 실제 콘텐츠가 더 있으면 \n 추가 (다음 단락과 구분)
+            if (hasMoreContent) {
+              assistantMessage.content += '\n';
+            }
+            
             updateMessages(initialMessages, assistantMessage, useDynamicUpdate);
           }
         }
@@ -305,30 +324,14 @@ export const ChatPage = (): JSX.Element => {
               }`}>
                 <CardContent className="p-3">
                   <div className="text-sm leading-relaxed">
-                    {message.type === 'assistant' ? (
-                      <ReactMarkdown 
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          // 모든 요소에 적절한 스타일 클래스 적용
-                          h1: ({children}) => <h1 className="text-lg font-bold text-gray-900 mb-2">{children}</h1>,
-                          h2: ({children}) => <h2 className="text-base font-semibold text-gray-900 mb-2">{children}</h2>,
-                          h3: ({children}) => <h3 className="text-sm font-medium text-gray-900 mb-1">{children}</h3>,
-                          p: ({children}) => <p className="text-gray-900 mb-2 leading-relaxed whitespace-pre-wrap">{children}</p>,
-                          strong: ({children}) => <strong className="font-semibold text-gray-900">{children}</strong>,
-                          em: ({children}) => <em className="italic text-gray-900">{children}</em>,
-                          code: ({children}) => <code className="bg-gray-100 text-gray-900 px-1 py-0.5 rounded text-xs">{children}</code>,
-                          pre: ({children}) => <pre className="bg-gray-100 text-gray-900 p-2 rounded text-xs overflow-x-auto whitespace-pre-wrap">{children}</pre>,
-                          ul: ({children}) => <ul className="list-disc list-inside text-gray-900 mb-2">{children}</ul>,
-                          ol: ({children}) => <ol className="list-decimal list-inside text-gray-900 mb-2">{children}</ol>,
-                          li: ({children}) => <li className="text-gray-900 mb-1">{children}</li>,
-                          blockquote: ({children}) => <blockquote className="border-l-4 border-gray-300 pl-3 text-gray-700 italic">{children}</blockquote>,
-                        }}
-                      >
-                        {message.content}
-                      </ReactMarkdown>
-                    ) : (
-                      <div className="whitespace-pre-wrap">{message.content}</div>
-                    )}
+                    {message.content
+                      .split('\n')
+                      .map((line, index) => (
+                        <React.Fragment key={index}>
+                          {line}
+                          {index < message.content.split('\n').length - 1 && <br />}
+                        </React.Fragment>
+                      ))}
                   </div>
                 </CardContent>
               </Card>
