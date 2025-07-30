@@ -82,6 +82,10 @@
         {
           "name": "FIREBASE_SERVICE_ACCOUNT_KEY",
           "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/firebase-service-account-key-base64-DjKPi6"
+        },
+        {
+          "name": "VITE_API_URL",
+          "valueFrom": "arn:aws:secretsmanager:ap-northeast-2:692631066742:secret:market-timing-calendar/vite-api-url-TPmzMG"
         }
       ],
       "logConfiguration": {
